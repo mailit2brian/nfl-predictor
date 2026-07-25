@@ -129,22 +129,23 @@ def find_game_week_in_schedule(team_name, target_opponent):
             return w_num
     return None
 
+def get_canonical_matchup_key(team_a, team_b, week_a, schedule_list):
+    """Creates a unified unique key for a game regardless of which team's page you are viewing."""
+    # Sort the two team names alphabetically to ensure consistency
+    teams = sorted([team_a, team_b])
+    return f"matchup_{teams[0]}_vs_{teams[1]}_w{week_a}"
+
 def get_corresponding_prediction(team, week_num, opponent):
-    """Checks direct pick first; otherwise, mirrors the opponent's choice for this matchup week."""
-    primary_key = f"{team}_week_{week_num}"
-    if primary_key in st.session_state.user_predictions:
-        return st.session_state.user_predictions[primary_key]
+    """Checks for an existing mirrored matchup choice."""
+    schedule = NFL_SCHEDULE.get(team, [])
+    matchup_key = get_canonical_matchup_key(team, opponent, week_num, schedule)
+    
+    if matchup_key in st.session_state.user_predictions:
+        stored_winner = st.session_state.user_predictions[matchup_key]
+        # Return "Win" if this team was chosen as winner, otherwise "Loss"
+        return "Win" if stored_winner == team else "Loss"
         
-    if opponent in NFL_SCHEDULE:
-        # Find what week this team occurs on the opponent's schedule
-        opp_week_num = find_game_week_in_schedule(opponent, team)
-        if opp_week_num:
-            opp_key = f"{opponent}_week_{opp_week_num}"
-            if opp_key in st.session_state.user_predictions:
-                opp_choice = st.session_state.user_predictions[opp_key]
-                return "Loss" if opp_choice == "Win" else "Win"
-                    
-    return "Win"
+    return "Win" # Default fallback
 
 def calculate_team_record(team_name):
     schedule = NFL_SCHEDULE.get(team_name, [])
@@ -197,9 +198,8 @@ for week_num, game_info in enumerate(schedule_list, start=1):
         location = "Home"
         matchup_label = f"vs {opponent}"
 
-    prediction_key = f"{selected_team}_week_{week_num}"
+    matchup_key = get_canonical_matchup_key(selected_team, opponent, week_num, schedule_list)
     current_val = get_corresponding_prediction(selected_team, week_num, opponent)
-    st.session_state.user_predictions[prediction_key] = current_val
     default_index = 0 if current_val == "Win" else 1
 
     result = st.radio(
@@ -210,8 +210,11 @@ for week_num, game_info in enumerate(schedule_list, start=1):
         horizontal=True
     )
     
-    if st.session_state.user_predictions.get(prediction_key) != result:
-        st.session_state.user_predictions[prediction_key] = result
+    # Determine which team actually won based on selection
+    chosen_winner = selected_team if result == "Win" else opponent
+    
+    if st.session_state.user_predictions.get(matchup_key) != chosen_winner:
+        st.session_state.user_predictions[matchup_key] = chosen_winner
         save_user_picks(username, st.session_state.user_predictions)
 
     if result == "Win":
