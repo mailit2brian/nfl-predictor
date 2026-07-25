@@ -103,6 +103,7 @@ def save_user_picks(user, picks_dict):
     except:
         pass
 
+# Switch session state container whenever the username text box changes
 if "current_user" not in st.session_state or st.session_state.current_user != username:
     st.session_state.current_user = username
     st.session_state.user_predictions = load_user_picks(username)
@@ -111,6 +112,7 @@ if "user_predictions" not in st.session_state:
     st.session_state.user_predictions = load_user_picks(username)
 
 def get_corresponding_prediction(team, week_num, opponent):
+    """Checks if the game was picked directly, or derives it flipped from the opponent's schedule."""
     primary_key = f"{team}_week_{week_num}"
     if primary_key in st.session_state.user_predictions:
         return st.session_state.user_predictions[primary_key]
@@ -143,7 +145,6 @@ def calculate_team_record(team_name):
             res = st.session_state.user_predictions[p_key]
         else:
             res = get_corresponding_prediction(team_name, w_num, opp)
-            st.session_state.user_predictions[p_key] = res
             
         if res == "Win":
             w += 1
@@ -195,7 +196,7 @@ for week_num, game_info in enumerate(schedule_list, start=1):
         horizontal=True
     )
     
-    if st.session_state.user_predictions[prediction_key] != result:
+    if st.session_state.user_predictions.get(prediction_key) != result:
         st.session_state.user_predictions[prediction_key] = result
         save_user_picks(username, st.session_state.user_predictions)
 
