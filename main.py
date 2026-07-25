@@ -103,10 +103,14 @@ def save_user_picks(user, picks_dict):
     except:
         pass
 
-# Switch session state container whenever the username text box changes
+# Force a clean reload of state whenever the username changes
 if "current_user" not in st.session_state or st.session_state.current_user != username:
     st.session_state.current_user = username
     st.session_state.user_predictions = load_user_picks(username)
+    # Clear out old radio button keys so they reset to the new user's loaded values
+    for key in list(st.session_state.keys()):
+        if key.startswith("radio_"):
+            del st.session_state[key]
 
 if "user_predictions" not in st.session_state:
     st.session_state.user_predictions = load_user_picks(username)
