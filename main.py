@@ -107,7 +107,6 @@ def save_user_picks(user, picks_dict):
 if "current_user" not in st.session_state or st.session_state.current_user != username:
     st.session_state.current_user = username
     st.session_state.user_predictions = load_user_picks(username)
-    # Clear out old radio button keys so they reset to the new user's loaded values
     for key in list(st.session_state.keys()):
         if key.startswith("radio_"):
             del st.session_state[key]
@@ -115,16 +114,32 @@ if "current_user" not in st.session_state or st.session_state.current_user != us
 if "user_predictions" not in st.session_state:
     st.session_state.user_predictions = load_user_picks(username)
 
+def find_game_week_in_schedule(team_name, target_opponent):
+    """Finds which week number a specific opponent occurs for a team."""
+    schedule = NFL_SCHEDULE.get(team_name, [])
+    for w_num, game_info in enumerate(schedule, start=1):
+        game_str = str(game_info)
+        if "Bye" in game_str:
+            continue
+        if game_str.lower().startswith("at "):
+            opp = game_str[3:].strip()
+        else:
+            opp = game_str.replace("vs ", "").replace("vs. ", "").strip()
+        if opp.lower() == target_opponent.lower():
+            return w_num
+    return None
+
 def get_corresponding_prediction(team, week_num, opponent):
-    """Checks if the game was picked directly, or derives it flipped from the opponent's schedule."""
+    """Checks direct pick first; otherwise, mirrors the opponent's choice for this matchup week."""
     primary_key = f"{team}_week_{week_num}"
     if primary_key in st.session_state.user_predictions:
         return st.session_state.user_predictions[primary_key]
         
     if opponent in NFL_SCHEDULE:
-        opp_schedule = NFL_SCHEDULE[opponent]
-        if len(opp_schedule) >= week_num:
-            opp_key = f"{opponent}_week_{week_num}"
+        # Find what week this team occurs on the opponent's schedule
+        opp_week_num = find_game_week_in_schedule(opponent, team)
+        if opp_week_num:
+            opp_key = f"{opponent}_week_{opp_week_num}"
             if opp_key in st.session_state.user_predictions:
                 opp_choice = st.session_state.user_predictions[opp_key]
                 return "Loss" if opp_choice == "Win" else "Win"
@@ -144,12 +159,7 @@ def calculate_team_record(team_name):
         else:
             opp = game_str.replace("vs ", "").replace("vs. ", "").strip()
             
-        p_key = f"{team_name}_week_{w_num}"
-        if p_key in st.session_state.user_predictions:
-            res = st.session_state.user_predictions[p_key]
-        else:
-            res = get_corresponding_prediction(team_name, w_num, opp)
-            
+        res = get_corresponding_prediction(team_name, w_num, opp)
         if res == "Win":
             w += 1
         else:
