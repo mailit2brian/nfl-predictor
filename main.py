@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 import os
+import psycopg2
 from nfl_data import NFL_SCHEDULE
 
 # Define conferences and divisions structure
@@ -19,30 +20,95 @@ NFL_STRUCTURE = {
     }
 }
 
-# File to store user picks permanently on the computer
-PICKS_FILE = "saved_picks.json"
+# --- DATABASE CONNECTION SETUP ---
+def get_db_connection():
+    try:
+        if "postgres" in st.secrets:
+            return psycopg2.connect(st.secrets["postgres"]["connection_string"])
+    except:
+        pass
+    return None
 
-def load_saved_picks():
-    """Loads saved picks from local storage file if it exists."""
-    if os.path.exists(PICKS_FILE):
+def init_db():
+    conn = get_db_connection()
+    if conn:
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_picks (
+                username TEXT PRIMARY KEY,
+                picks_data TEXT
+            )
+        """)
+        conn.commit()
+        cur.close()
+        conn.close()
+
+init_db()
+
+# --- SIDEBAR: USER PROFILE SELECTION ---
+st.sidebar.title("NFL Navigation")
+st.sidebar.subheader("👤 User Profile")
+username = st.sidebar.text_input("Enter Your Name:", value="My Picks").strip()
+
+if not username:
+    username = "DefaultUser"
+
+def load_user_picks(user):
+    """Loads picks for the specific user from cloud DB or local fallback file."""
+    conn = get_db_connection()
+    if conn:
         try:
-            with open(PICKS_FILE, "r") as f:
+            cur = conn.cursor()
+            cur.execute("SELECT picks_data FROM user_picks WHERE username = %s", (user,))
+            row = cur.fetchone()
+            cur.close()
+            conn.close()
+            if row:
+                return json.loads(row[0])
+        except:
+            pass
+    
+    local_file = f"picks_{user}.json"
+    if os.path.exists(local_file):
+        try:
+            with open(local_file, "r") as f:
                 return json.load(f)
         except:
             return {}
     return {}
 
-def save_picks_to_disk():
-    """Saves current dictionary picks to local storage file."""
+def save_user_picks(user, picks_dict):
+    """Saves picks for the specific user to cloud DB and local file backup."""
+    picks_json = json.dumps(picks_dict)
+    
+    conn = get_db_connection()
+    if conn:
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO user_picks (username, picks_data) 
+                VALUES (%s, %s) 
+                ON CONFLICT (username) 
+                DO UPDATE SET picks_data = EXCLUDED.picks_data
+            """, (user, picks_json))
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception as e:
+            st.error(f"Cloud save error: {e}")
+
     try:
-        with open(PICKS_FILE, "w") as f:
-            json.dump(st.session_state.user_predictions, f)
+        with open(f"picks_{user}.json", "w") as f:
+            f.write(picks_json)
     except:
         pass
 
-# Initialize session state from local file
+if "current_user" not in st.session_state or st.session_state.current_user != username:
+    st.session_state.current_user = username
+    st.session_state.user_predictions = load_user_picks(username)
+
 if "user_predictions" not in st.session_state:
-    st.session_state.user_predictions = load_saved_picks()
+    st.session_state.user_predictions = load_user_picks(username)
 
 def get_corresponding_prediction(team, week_num, opponent):
     primary_key = f"{team}_week_{week_num}"
@@ -85,24 +151,17 @@ def calculate_team_record(team_name):
             l += 1
     return w, l
 
-st.sidebar.title("NFL Navigation")
-
-# Conference selection
+st.sidebar.markdown("---")
 selected_conference = st.sidebar.selectbox("Select Conference:", list(NFL_STRUCTURE.keys()))
-
-# Division selection
 selected_division = st.sidebar.selectbox("Select Division:", list(NFL_STRUCTURE[selected_conference].keys()))
-
-# Team selection
 selected_team = st.sidebar.selectbox("Select Team:", NFL_STRUCTURE[selected_conference][selected_division])
 
 st.title(f"2026 Schedule & Predictions: {selected_team}")
-st.markdown(f"*{selected_conference} - {selected_division}*")
+st.markdown(f"*{selected_conference} - {selected_division}* (Editing as: **{username}**)")
 st.write("Select whether your team will **Win** or **Lose** each matchup below:")
 st.markdown("---")
 
 schedule_list = NFL_SCHEDULE.get(selected_team, [])
-
 wins = 0
 losses = 0
 
@@ -124,10 +183,8 @@ for week_num, game_info in enumerate(schedule_list, start=1):
         matchup_label = f"vs {opponent}"
 
     prediction_key = f"{selected_team}_week_{week_num}"
-    
     current_val = get_corresponding_prediction(selected_team, week_num, opponent)
     st.session_state.user_predictions[prediction_key] = current_val
-    
     default_index = 0 if current_val == "Win" else 1
 
     result = st.radio(
@@ -138,10 +195,9 @@ for week_num, game_info in enumerate(schedule_list, start=1):
         horizontal=True
     )
     
-    # Update state and immediately save to disk
     if st.session_state.user_predictions[prediction_key] != result:
         st.session_state.user_predictions[prediction_key] = result
-        save_picks_to_disk()
+        save_user_picks(username, st.session_state.user_predictions)
 
     if result == "Win":
         wins += 1
@@ -149,7 +205,6 @@ for week_num, game_info in enumerate(schedule_list, start=1):
         losses += 1
     st.markdown("---")
 
-# --- SIDEBAR PROJECTED RECORD & PLAYOFF PICTURE ---
 st.sidebar.markdown("---")
 st.sidebar.subheader("📊 Projected Record")
 st.sidebar.write(selected_team)
@@ -160,7 +215,6 @@ st.sidebar.subheader("🏆 Playoff Picture")
 
 for conf_name, divs in NFL_STRUCTURE.items():
     st.sidebar.markdown(f"### {conf_name} Playoff Race")
-    
     div_winners = []
     wild_card_pool = []
     
@@ -169,11 +223,8 @@ for conf_name, divs in NFL_STRUCTURE.items():
         for t in teams:
             tw, tl = calculate_team_record(t)
             team_records.append((t, tw, tl))
-        
         team_records.sort(key=lambda x: (x[1], -x[2]), reverse=True)
-        winner = team_records[0]
-        div_winners.append(winner)
-        
+        div_winners.append(team_records[0])
         for tr in team_records[1:]:
             wild_card_pool.append(tr)
             
@@ -188,5 +239,4 @@ for conf_name, divs in NFL_STRUCTURE.items():
     st.sidebar.markdown("**Wild Card Teams (Seeds 5-7)**")
     for idx, (t_name, tw, tl) in enumerate(wild_card_teams, start=5):
         st.sidebar.write(f"Seed {idx}: {t_name} ({tw}-{tl})")
-    
     st.sidebar.markdown("---")
