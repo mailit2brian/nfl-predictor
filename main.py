@@ -97,21 +97,6 @@ def set_pick_for_game(gid, ht, at, tp, wk):
     st.session_state.user_predictions[gid] = pick_result
     save_user_pick(username, gid, pick_result)
 
-# --- SIDEBAR: USER PROFILE SELECTION ---
-st.sidebar.title("NFL Navigation")
-st.sidebar.subheader("User Profile")
-username = st.sidebar.text_input("Enter Your Name:", value="My Picks").strip()
-
-if not username:
-    username = "DefaultUser"
-
-if "current_user" not in st.session_state or st.session_state.current_user != username:
-    st.session_state.current_user = username
-    st.session_state.user_predictions = load_user_picks(username)
-
-if "user_predictions" not in st.session_state:
-    st.session_state.user_predictions = load_user_picks(username)
-
 def calculate_team_record(team_name):
     """Calculate W-L record from picks."""
     schedule = NFL_SCHEDULE.get(team_name, [])
@@ -143,11 +128,41 @@ def calculate_team_record(team_name):
     
     return w, l
 
+# --- SIDEBAR: USER PROFILE SELECTION ---
+st.sidebar.title("NFL Navigation")
+st.sidebar.subheader("User Profile")
+username = st.sidebar.text_input("Enter Your Name:", value="My Picks").strip()
+
+if not username:
+    username = "DefaultUser"
+
+if "current_user" not in st.session_state or st.session_state.current_user != username:
+    st.session_state.current_user = username
+    st.session_state.user_predictions = load_user_picks(username)
+
+if "user_predictions" not in st.session_state:
+    st.session_state.user_predictions = load_user_picks(username)
+
 # --- MAIN UI ---
 st.sidebar.markdown("---")
 selected_conference = st.sidebar.selectbox("Select Conference:", list(NFL_STRUCTURE.keys()))
 selected_division = st.sidebar.selectbox("Select Division:", list(NFL_STRUCTURE[selected_conference].keys()))
 selected_team = st.sidebar.selectbox("Select Team:", NFL_STRUCTURE[selected_conference][selected_division])
+
+# --- DIVISION STANDINGS ---
+st.sidebar.markdown("---")
+st.sidebar.subheader("Division Standings")
+
+division_teams = NFL_STRUCTURE[selected_conference][selected_division]
+standings = []
+for team in division_teams:
+    w, l = calculate_team_record(team)
+    standings.append((team, w, l))
+
+standings.sort(key=lambda x: (x[1], -x[2]), reverse=True)
+
+for idx, (team, w, l) in enumerate(standings, start=1):
+    st.sidebar.write(f"{idx}. {team} ({w}-{l})")
 
 st.title(f"2026 Schedule & Predictions: {selected_team}")
 st.markdown(f"*{selected_conference} - {selected_division}* (Editing as: **{username}**)")
