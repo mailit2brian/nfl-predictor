@@ -1,7 +1,6 @@
 import streamlit as st
 import json
 import os
-import psycopg2
 from nfl_data import NFL_SCHEDULE
 
 # Define conferences and divisions structure
@@ -19,46 +18,6 @@ NFL_STRUCTURE = {
         "NFC West": ["Los Angeles Rams", "Seattle Seahawks", "Arizona Cardinals", "San Francisco 49ers"]
     }
 }
-
-# --- DATABASE CONNECTION SETUP ---
-def get_db_connection():
-    try:
-        if "postgres" in st.secrets:
-            return psycopg2.connect(st.secrets["postgres"]["connection_string"])
-    except:
-        pass
-    return None
-
-def init_db():
-    """Initialize game-centric schema."""
-    conn = get_db_connection()
-    if conn:
-        cur = conn.cursor()
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS games (
-                game_id TEXT PRIMARY KEY,
-                week INT,
-                home_team TEXT,
-                away_team TEXT,
-                game_datetime TIMESTAMP DEFAULT NOW()
-            )
-        """)
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS user_picks (
-                username TEXT,
-                game_id TEXT,
-                pick_result TEXT,
-                created_at TIMESTAMP DEFAULT NOW(),
-                updated_at TIMESTAMP DEFAULT NOW(),
-                PRIMARY KEY (username, game_id),
-                FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE
-            )
-        """)
-        conn.commit()
-        cur.close()
-        conn.close()
-
-init_db()
 
 def get_all_teams():
     """Flatten all teams from NFL_STRUCTURE."""
@@ -83,79 +42,8 @@ def generate_game_id(week_num, team1, team2):
     teams = sorted([team1, team2])
     return f"week{week_num}_{teams[0].replace(' ', '')}vs{teams[1].replace(' ', '')}"
 
-def seed_games_table():
-    """Populate games table."""
-    conn = get_db_connection()
-    if not conn:
-        return
-
-    cur = conn.cursor()
-    seeded_game_ids = set()
-
-    try:
-        for team_name in get_all_teams():
-            schedule = NFL_SCHEDULE.get(team_name, [])
-            
-            for week_num, game_info in enumerate(schedule, start=1):
-                game_str = str(game_info)
-                if "bye" in game_str.lower():
-                    continue
-
-                opponent = get_opponent_from_gamestr(game_str)
-                if not opponent:
-                    continue
-
-                if game_str.lower().startswith("at "):
-                    home_team = opponent
-                    away_team = team_name
-                else:
-                    home_team = team_name
-                    away_team = opponent
-
-                game_id = generate_game_id(week_num, home_team, away_team)
-
-                if game_id in seeded_game_ids:
-                    continue
-                seeded_game_ids.add(game_id)
-
-                cur.execute("""
-                    INSERT INTO games (game_id, week, home_team, away_team)
-                    VALUES (%s, %s, %s, %s)
-                    ON CONFLICT (game_id) DO NOTHING
-                """, (game_id, week_num, home_team, away_team))
-
-        conn.commit()
-    except Exception as e:
-        st.error(f"Error seeding games: {e}")
-    finally:
-        cur.close()
-        conn.close()
-
-seed_games_table()
-
 def load_user_picks(username):
-    """Load picks by game_id from DB, fall back to local JSON."""
-    picks_dict = {}
-    
-    conn = get_db_connection()
-    if conn:
-        try:
-            cur = conn.cursor()
-            cur.execute("""
-                SELECT game_id, pick_result 
-                FROM user_picks 
-                WHERE username = %s
-            """, (username,))
-            rows = cur.fetchall()
-            cur.close()
-            conn.close()
-            
-            for game_id, pick_result in rows:
-                picks_dict[game_id] = pick_result
-            return picks_dict
-        except Exception as e:
-            pass
-
+    """Load picks from local JSON file."""
     local_file = f"picks_{username}.json"
     if os.path.exists(local_file):
         try:
@@ -166,29 +54,13 @@ def load_user_picks(username):
     return {}
 
 def save_user_pick(username, game_id, pick_result):
-    """Save a single pick to DB and local backup."""
-    conn = get_db_connection()
-    if conn:
-        try:
-            cur = conn.cursor()
-            cur.execute("""
-                INSERT INTO user_picks (username, game_id, pick_result, updated_at)
-                VALUES (%s, %s, %s, NOW())
-                ON CONFLICT (username, game_id)
-                DO UPDATE SET pick_result = EXCLUDED.pick_result, updated_at = NOW()
-            """, (username, game_id, pick_result))
-            conn.commit()
-            cur.close()
-            conn.close()
-        except Exception as e:
-            st.error(f"Error saving pick: {e}")
-
+    """Save a single pick to local JSON file."""
+    picks_dict = st.session_state.get("user_predictions", {})
     try:
-        picks_dict = st.session_state.get("user_predictions", {})
         with open(f"picks_{username}.json", "w") as f:
             f.write(json.dumps(picks_dict))
     except Exception as e:
-        pass
+        st.error(f"Error saving pick: {e}")
 
 def get_pick_for_game(game_id, home_team, away_team, team_perspective):
     """Retrieve pick for a game from a team's perspective."""
