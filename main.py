@@ -149,20 +149,30 @@ selected_conference = st.sidebar.selectbox("Select Conference:", list(NFL_STRUCT
 selected_division = st.sidebar.selectbox("Select Division:", list(NFL_STRUCTURE[selected_conference].keys()))
 selected_team = st.sidebar.selectbox("Select Team:", NFL_STRUCTURE[selected_conference][selected_division])
 
-# --- DIVISION STANDINGS ---
+# --- DIVISION STANDINGS & PROJECTED RECORD (SIDE BY SIDE) ---
 st.sidebar.markdown("---")
-st.sidebar.subheader("Division Standings")
 
-division_teams = NFL_STRUCTURE[selected_conference][selected_division]
-standings = []
-for team in division_teams:
-    w, l = calculate_team_record(team)
-    standings.append((team, w, l))
+col1, col2 = st.sidebar.columns(2)
 
-standings.sort(key=lambda x: (x[1], -x[2]), reverse=True)
+with col1:
+    st.subheader("Division Standings")
+    division_teams = NFL_STRUCTURE[selected_conference][selected_division]
+    standings = []
+    for team in division_teams:
+        w, l = calculate_team_record(team)
+        standings.append((team, w, l))
+    
+    standings.sort(key=lambda x: (x[1], -x[2]), reverse=True)
+    
+    for idx, (team, w, l) in enumerate(standings, start=1):
+        st.write(f"{idx}. {team}")
+        st.caption(f"{w}-{l}")
 
-for idx, (team, w, l) in enumerate(standings, start=1):
-    st.sidebar.write(f"{idx}. {team} ({w}-{l})")
+with col2:
+    st.subheader("Projected Record")
+    w, l = calculate_team_record(selected_team)
+    st.write(selected_team)
+    st.markdown(f"### {w}-{l}")
 
 st.title(f"2026 Schedule & Predictions: {selected_team}")
 st.markdown(f"*{selected_conference} - {selected_division}* (Editing as: **{username}**)")
@@ -218,11 +228,6 @@ for week_num, game_info in enumerate(schedule_list, start=1):
         losses += 1
 
     st.markdown("---")
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("Projected Record")
-st.sidebar.write(selected_team)
-st.sidebar.markdown(f"### {wins} - {losses}")
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("Playoff Picture")
