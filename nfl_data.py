@@ -448,7 +448,7 @@ NFL_SCHEDULE = {
         "at Tampa Bay Buccaneers",
         "vs. Chicago Bears",
         "vs. Dallas Cowboys",
-        "vs. Detroit Lions",
+        "at Detroit Lions",
         "vs. Carolina Panthers",
         "at New England Patriots",
         "vs. Minnesota Vikings",
