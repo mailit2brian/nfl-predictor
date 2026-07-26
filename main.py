@@ -311,7 +311,7 @@ for week_num, game_info in enumerate(schedule_list, start=1):
 
     game_id = generate_game_id(week_num, home_team, away_team)
     current_val = get_pick_for_game(game_id, home_team, away_team, selected_team)
-    widget_key = f"radio_{game_id}"
+    widget_key = f"radio_{game_id}_{selected_team}"
 
     if widget_key not in st.session_state:
         st.session_state[widget_key] = current_val
