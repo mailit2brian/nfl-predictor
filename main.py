@@ -60,6 +60,14 @@ def init_db():
 
 init_db()
 
+def get_all_teams():
+    """Flatten all teams from NFL_STRUCTURE."""
+    all_teams = []
+    for conf in NFL_STRUCTURE.values():
+        for div in conf.values():
+            all_teams.extend(div)
+    return all_teams
+
 def generate_game_id(week_num, team1, team2):
     """Create deterministic game ID using alphabetical sorting."""
     teams = sorted([team1, team2])
@@ -114,14 +122,6 @@ def seed_games_table():
         conn.close()
 
 seed_games_table()
-
-def get_all_teams():
-    """Flatten all teams from NFL_STRUCTURE."""
-    all_teams = []
-    for conf in NFL_STRUCTURE.values():
-        for div in conf.values():
-            all_teams.extend(div)
-    return all_teams
 
 def load_user_picks(username):
     """Load picks by game_id from DB, fall back to local JSON."""
