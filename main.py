@@ -195,7 +195,7 @@ def get_pick_for_game(game_id, home_team, away_team, team_perspective):
     picks_dict = st.session_state.get("user_predictions", {})
     
     if game_id not in picks_dict:
-        return None
+        return "No Pick"
 
     pick_result = picks_dict[game_id]
     
@@ -207,6 +207,13 @@ def get_pick_for_game(game_id, home_team, away_team, team_perspective):
 def set_pick_for_game(gid, ht, at, tp, wk):
     """Set pick for a game (automatically syncs both teams)."""
     win_or_loss = st.session_state[wk]
+    
+    # If "No Pick" selected, don't save anything
+    if win_or_loss == "No Pick":
+        # Remove from picks if it exists
+        if gid in st.session_state.user_predictions:
+            del st.session_state.user_predictions[gid]
+        return
     
     if tp == ht:
         pick_result = "home_win" if win_or_loss == "Win" else "away_win"
@@ -305,11 +312,11 @@ for week_num, game_info in enumerate(schedule_list, start=1):
     widget_key = f"radio_{game_id}"
 
     if widget_key not in st.session_state:
-        st.session_state[widget_key] = current_val if current_val else "Win"
+        st.session_state[widget_key] = current_val
 
     result = st.radio(
         f"**Week {week_num}** {matchup_label} *({location})*",
-        ["Win", "Loss"],
+        ["No Pick", "Win", "Loss"],
         key=widget_key,
         horizontal=True,
         on_change=set_pick_for_game,
@@ -320,6 +327,7 @@ for week_num, game_info in enumerate(schedule_list, start=1):
         wins += 1
     elif result == "Loss":
         losses += 1
+
     st.markdown("---")
 
 st.sidebar.markdown("---")
