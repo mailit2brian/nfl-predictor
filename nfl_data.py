@@ -53,7 +53,7 @@ NFL_SCHEDULE = {
         "vs. Green Bay Packers",
         "vs. Detroit Lions",
         "vs. Atlanta Falcons",
-        "vs. Los Angeles Chargers",
+        "at Los Angeles Chargers",
         "vs. Buffalo Bills",
         "vs. Minnesota Vikings",
         "at Cincinnati Bengals",
