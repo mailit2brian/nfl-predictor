@@ -2,7 +2,6 @@ import streamlit as st
 import json
 import os
 import psycopg2
-from hashlib import md5
 from nfl_data import NFL_SCHEDULE
 
 # Define conferences and divisions structure
@@ -62,15 +61,9 @@ def init_db():
 init_db()
 
 def generate_game_id(week_num, team1, team2):
-    """
-    Create deterministic game ID that's the same regardless of perspective.
-    Always sort teams alphabetically to ensure consistency.
-    """
+    """Create deterministic game ID using alphabetical sorting."""
     teams = sorted([team1, team2])
-    key = f"{week_num}_{teams[0]}_{teams[1]}".lower()
-    hash_suffix = md5(key.encode()).hexdigest()[:8]
-    game_id = f"week{week_num}_{teams[0].replace(' ', '')}_{teams[1].replace(' ', '')}_{hash_suffix}"
-    return game_id
+    return f"week{week_num}_{teams[0].replace(' ', '')}vs{teams[1].replace(' ', '')}"
 
 def seed_games_table():
     """Populate games table."""
@@ -202,7 +195,7 @@ def get_pick_for_game(game_id, home_team, away_team, team_perspective):
     picks_dict = st.session_state.get("user_predictions", {})
     
     if game_id not in picks_dict:
-        return None  # Return None instead of defaulting to "Win"
+        return None
 
     pick_result = picks_dict[game_id]
     
@@ -311,8 +304,6 @@ for week_num, game_info in enumerate(schedule_list, start=1):
     current_val = get_pick_for_game(game_id, home_team, away_team, selected_team)
     widget_key = f"radio_{game_id}"
 
-    # Only set widget state if we have a pick AND it's not already set
-    # This allows the radio to stay None until explicitly picked
     if widget_key not in st.session_state:
         st.session_state[widget_key] = current_val if current_val else "Win"
 
