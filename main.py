@@ -68,6 +68,16 @@ def get_all_teams():
             all_teams.extend(div)
     return all_teams
 
+def get_opponent_from_gamestr(game_str):
+    """Extract opponent from game string."""
+    game_lower = game_str.lower()
+    if "bye" in game_lower:
+        return None
+    if game_lower.startswith("at "):
+        return game_str[3:].strip()
+    else:
+        return game_str.replace("vs ", "").replace("vs. ", "").strip()
+
 def generate_game_id(week_num, team1, team2):
     """Create deterministic game ID using alphabetical sorting."""
     teams = sorted([team1, team2])
@@ -179,16 +189,6 @@ def save_user_pick(username, game_id, pick_result):
             f.write(json.dumps(picks_dict))
     except Exception as e:
         pass
-
-def get_opponent_from_gamestr(game_str):
-    """Extract opponent from game string."""
-    game_lower = game_str.lower()
-    if "bye" in game_lower:
-        return None
-    if game_lower.startswith("at "):
-        return game_str[3:].strip()
-    else:
-        return game_str.replace("vs ", "").replace("vs. ", "").strip()
 
 def get_pick_for_game(game_id, home_team, away_team, team_perspective):
     """Retrieve pick for a game from a team's perspective."""
