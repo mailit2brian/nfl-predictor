@@ -202,7 +202,7 @@ def get_pick_for_game(game_id, home_team, away_team, team_perspective):
     picks_dict = st.session_state.get("user_predictions", {})
     
     if game_id not in picks_dict:
-        return "Win"
+        return None  # Return None instead of defaulting to "Win"
 
     pick_result = picks_dict[game_id]
     
@@ -311,8 +311,10 @@ for week_num, game_info in enumerate(schedule_list, start=1):
     current_val = get_pick_for_game(game_id, home_team, away_team, selected_team)
     widget_key = f"radio_{game_id}"
 
+    # Only set widget state if we have a pick AND it's not already set
+    # This allows the radio to stay None until explicitly picked
     if widget_key not in st.session_state:
-        st.session_state[widget_key] = current_val
+        st.session_state[widget_key] = current_val if current_val else "Win"
 
     result = st.radio(
         f"**Week {week_num}** {matchup_label} *({location})*",
