@@ -35,7 +35,6 @@ def init_db():
     conn = get_db_connection()
     if conn:
         cur = conn.cursor()
-        # Games table (immutable reference)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS games (
                 game_id TEXT PRIMARY KEY,
@@ -45,7 +44,6 @@ def init_db():
                 game_datetime TIMESTAMP DEFAULT NOW()
             )
         """)
-        # Picks table (normalized by game, not by team)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS user_picks (
                 username TEXT,
@@ -63,21 +61,19 @@ def init_db():
 
 init_db()
 
-# --- GAME ID GENERATION ---
-def generate_game_id(week_num, home_team, away_team):
+def generate_game_id(week_num, team1, team2):
     """
-    Create deterministic game ID: week{week}_hometeam_awayteam_hash
-    Ensures consistency across both teams' schedules.
+    Create deterministic game ID that's the same regardless of perspective.
+    Always sort teams alphabetically to ensure consistency.
     """
-    key = f"{week_num}_{home_team}_{away_team}".lower()
+    teams = sorted([team1, team2])
+    key = f"{week_num}_{teams[0]}_{teams[1]}".lower()
     hash_suffix = md5(key.encode()).hexdigest()[:8]
-    return f"week{week_num}_{home_team.replace(' ', '')}_{away_team.replace(' ', '')}_{hash_suffix}"
+    game_id = f"week{week_num}_{teams[0].replace(' ', '')}_{teams[1].replace(' ', '')}_{hash_suffix}"
+    return game_id
 
 def seed_games_table():
-    """
-    Populate games table by traversing all teams' schedules once.
-    Ensures each game appears exactly once in the DB.
-    """
+    """Populate games table."""
     conn = get_db_connection()
     if not conn:
         return
@@ -98,7 +94,6 @@ def seed_games_table():
                 if not opponent:
                     continue
 
-                # Determine home/away
                 if game_str.lower().startswith("at "):
                     home_team = opponent
                     away_team = team_name
@@ -108,12 +103,10 @@ def seed_games_table():
 
                 game_id = generate_game_id(week_num, home_team, away_team)
 
-                # Idempotent: skip if already seeded
                 if game_id in seeded_game_ids:
                     continue
                 seeded_game_ids.add(game_id)
 
-                # Insert or ignore
                 cur.execute("""
                     INSERT INTO games (game_id, week, home_team, away_team)
                     VALUES (%s, %s, %s, %s)
@@ -137,7 +130,6 @@ def get_all_teams():
             all_teams.extend(div)
     return all_teams
 
-# --- PICK MANAGEMENT (GAME-CENTRIC) ---
 def load_user_picks(username):
     """Load picks by game_id from DB, fall back to local JSON."""
     picks_dict = {}
@@ -161,7 +153,6 @@ def load_user_picks(username):
         except Exception as e:
             pass
 
-    # Fallback to local JSON
     local_file = f"picks_{username}.json"
     if os.path.exists(local_file):
         try:
@@ -189,12 +180,11 @@ def save_user_pick(username, game_id, pick_result):
         except Exception as e:
             st.error(f"Error saving pick: {e}")
 
-    # Local backup
     try:
         picks_dict = st.session_state.get("user_predictions", {})
         with open(f"picks_{username}.json", "w") as f:
             f.write(json.dumps(picks_dict))
-    except:
+    except Exception as e:
         pass
 
 def get_opponent_from_gamestr(game_str):
@@ -208,55 +198,34 @@ def get_opponent_from_gamestr(game_str):
         return game_str.replace("vs ", "").replace("vs. ", "").strip()
 
 def get_pick_for_game(game_id, home_team, away_team, team_perspective):
-    """
-    Retrieve pick for a game from a team's perspective.
-    
-    Args:
-        game_id: Unique game identifier
-        home_team: Home team name
-        away_team: Away team name
-        team_perspective: The team making the prediction
-    
-    Returns:
-        "Win" or "Loss" from the team_perspective's POV
-    """
+    """Retrieve pick for a game from a team's perspective."""
     picks_dict = st.session_state.get("user_predictions", {})
     
     if game_id not in picks_dict:
-        return "Win"  # Default
+        return "Win"
 
     pick_result = picks_dict[game_id]
     
-    # Convert game-centric pick to team-centric view
     if team_perspective == home_team:
         return "Win" if pick_result == "home_win" else "Loss"
     else:
         return "Win" if pick_result == "away_win" else "Loss"
 
-def set_pick_for_game(game_id, home_team, away_team, team_perspective, win_or_loss):
-    """
-    Set pick for a game (automatically syncs both teams).
+def set_pick_for_game(gid, ht, at, tp, wk):
+    """Set pick for a game (automatically syncs both teams)."""
+    win_or_loss = st.session_state[wk]
     
-    Args:
-        game_id: Unique game identifier
-        home_team: Home team name
-        away_team: Away team name
-        team_perspective: The team making the prediction
-        win_or_loss: "Win" or "Loss" from the team_perspective's POV
-    """
-    # Convert team-centric to game-centric
-    if team_perspective == home_team:
+    if tp == ht:
         pick_result = "home_win" if win_or_loss == "Win" else "away_win"
     else:
         pick_result = "away_win" if win_or_loss == "Win" else "home_win"
     
-    # Update session state and DB (atomic)
-    st.session_state.user_predictions[game_id] = pick_result
-    save_user_pick(username, game_id, pick_result)
+    st.session_state.user_predictions[gid] = pick_result
+    save_user_pick(username, gid, pick_result)
 
 # --- SIDEBAR: USER PROFILE SELECTION ---
 st.sidebar.title("NFL Navigation")
-st.sidebar.subheader("👤 User Profile")
+st.sidebar.subheader("User Profile")
 username = st.sidebar.text_input("Enter Your Name:", value="My Picks").strip()
 
 if not username:
@@ -283,7 +252,6 @@ def calculate_team_record(team_name):
         if not opponent:
             continue
 
-        # Determine home/away
         if game_str.lower().startswith("at "):
             home_team = opponent
             away_team = team_name
@@ -309,7 +277,7 @@ selected_team = st.sidebar.selectbox("Select Team:", NFL_STRUCTURE[selected_conf
 
 st.title(f"2026 Schedule & Predictions: {selected_team}")
 st.markdown(f"*{selected_conference} - {selected_division}* (Editing as: **{username}**)")
-st.write("Select whether your team will **Win** or **Lose** each matchup below:")
+st.write("Select whether your team will Win or Lose each matchup below:")
 st.markdown("---")
 
 schedule_list = NFL_SCHEDULE.get(selected_team, [])
@@ -343,7 +311,6 @@ for week_num, game_info in enumerate(schedule_list, start=1):
     current_val = get_pick_for_game(game_id, home_team, away_team, selected_team)
     widget_key = f"radio_{game_id}"
 
-    # Seed widget cache with current value
     if widget_key not in st.session_state:
         st.session_state[widget_key] = current_val
 
@@ -352,8 +319,8 @@ for week_num, game_info in enumerate(schedule_list, start=1):
         ["Win", "Loss"],
         key=widget_key,
         horizontal=True,
-        on_change=lambda gid=game_id, ht=home_team, at=away_team, tp=selected_team, wk=widget_key: 
-                    set_pick_for_game(gid, ht, at, tp, st.session_state[wk])
+        on_change=set_pick_for_game,
+        args=(game_id, home_team, away_team, selected_team, widget_key)
     )
 
     if result == "Win":
@@ -363,12 +330,12 @@ for week_num, game_info in enumerate(schedule_list, start=1):
     st.markdown("---")
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("📊 Projected Record")
+st.sidebar.subheader("Projected Record")
 st.sidebar.write(selected_team)
 st.sidebar.markdown(f"### {wins} - {losses}")
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🏆 Playoff Picture")
+st.sidebar.subheader("Playoff Picture")
 
 for conf_name, divs in NFL_STRUCTURE.items():
     st.sidebar.markdown(f"### {conf_name} Playoff Race")
