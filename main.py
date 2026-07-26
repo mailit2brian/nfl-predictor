@@ -149,27 +149,24 @@ selected_conference = st.sidebar.selectbox("Select Conference:", list(NFL_STRUCT
 selected_division = st.sidebar.selectbox("Select Division:", list(NFL_STRUCTURE[selected_conference].keys()))
 selected_team = st.sidebar.selectbox("Select Team:", NFL_STRUCTURE[selected_conference][selected_division])
 
-# --- PROJECTED RECORD (UNDER TEAM SELECTOR) ---
-st.sidebar.markdown("---")
-st.sidebar.subheader("Projected Record")
+# --- PROJECTED RECORD (COMPACT IN BOX) ---
+st.sidebar.markdown("")
 w, l = calculate_team_record(selected_team)
-st.sidebar.write(selected_team)
-st.sidebar.markdown(f"### {w}-{l}")
+st.sidebar.metric("Projected Record", f"{w}-{l}", label_visibility="collapsed")
 
 # --- DIVISION STANDINGS (COMPACT BOX) ---
 st.sidebar.markdown("---")
-with st.sidebar.container():
-    st.subheader("Division Standings")
-    division_teams = NFL_STRUCTURE[selected_conference][selected_division]
-    standings = []
-    for team in division_teams:
-        tw, tl = calculate_team_record(team)
-        standings.append((team, tw, tl))
-    
-    standings.sort(key=lambda x: (x[1], -x[2]), reverse=True)
-    
-    for idx, (team, tw, tl) in enumerate(standings, start=1):
-        st.caption(f"{idx}. {team} ({tw}-{tl})")
+st.sidebar.subheader("Division Standings")
+division_teams = NFL_STRUCTURE[selected_conference][selected_division]
+standings = []
+for team in division_teams:
+    tw, tl = calculate_team_record(team)
+    standings.append((team, tw, tl))
+
+standings.sort(key=lambda x: (x[1], -x[2]), reverse=True)
+
+for idx, (team, tw, tl) in enumerate(standings, start=1):
+    st.sidebar.caption(f"{idx}. {team} ({tw}-{tl})")
 
 st.title(f"2026 Schedule & Predictions: {selected_team}")
 st.markdown(f"*{selected_conference} - {selected_division}* (Editing as: **{username}**)")
