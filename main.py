@@ -194,33 +194,47 @@ def get_pick_for_game(game_id, home_team, away_team, team_perspective):
     """Retrieve pick for a game from a team's perspective."""
     picks_dict = st.session_state.get("user_predictions", {})
     
+    print(f"DEBUG get_pick_for_game: game_id={game_id}, home={home_team}, away={away_team}, perspective={team_perspective}")
+    print(f"  picks_dict keys: {list(picks_dict.keys())}")
+    
     if game_id not in picks_dict:
+        print(f"  -> game_id not in picks, returning 'No Pick'")
         return "No Pick"
 
     pick_result = picks_dict[game_id]
+    print(f"  -> found pick_result: {pick_result}")
     
     if team_perspective == home_team:
-        return "Win" if pick_result == "home_win" else "Loss"
+        result = "Win" if pick_result == "home_win" else "Loss"
+        print(f"  -> perspective is HOME, returning {result}")
     else:
-        return "Win" if pick_result == "away_win" else "Loss"
+        result = "Win" if pick_result == "away_win" else "Loss"
+        print(f"  -> perspective is AWAY, returning {result}")
+    
+    return result
 
 def set_pick_for_game(gid, ht, at, tp, wk):
     """Set pick for a game (automatically syncs both teams)."""
     win_or_loss = st.session_state[wk]
     
+    print(f"DEBUG set_pick_for_game: game_id={gid}, home={ht}, away={at}, team_perspective={tp}, widget_value={win_or_loss}")
+    
     # If "No Pick" selected, don't save anything
     if win_or_loss == "No Pick":
-        # Remove from picks if it exists
+        print(f"  -> 'No Pick' selected, removing from picks")
         if gid in st.session_state.user_predictions:
             del st.session_state.user_predictions[gid]
         return
     
     if tp == ht:
         pick_result = "home_win" if win_or_loss == "Win" else "away_win"
+        print(f"  -> team_perspective IS home_team, pick_result={pick_result}")
     else:
         pick_result = "away_win" if win_or_loss == "Win" else "home_win"
+        print(f"  -> team_perspective is AWAY_team, pick_result={pick_result}")
     
     st.session_state.user_predictions[gid] = pick_result
+    print(f"  -> saved to session: {st.session_state.user_predictions}")
     save_user_pick(username, gid, pick_result)
 
 # --- SIDEBAR: USER PROFILE SELECTION ---
