@@ -20,6 +20,42 @@ NFL_STRUCTURE = {
     }
 }
 
+# Vegas Over/Under Win Totals (as of July 27, 2026)
+VEGAS_ODDS = {
+    "Buffalo Bills": 10.5,
+    "Miami Dolphins": 4.5,
+    "New England Patriots": 10.5,
+    "New York Jets": 5.5,
+    "Baltimore Ravens": 11.5,
+    "Cincinnati Bengals": 10.5,
+    "Cleveland Browns": 6.5,
+    "Pittsburgh Steelers": 8.5,
+    "Houston Texans": 9.5,
+    "Indianapolis Colts": 8.5,
+    "Jacksonville Jaguars": 9.5,
+    "Tennessee Titans": 6.5,
+    "Denver Broncos": 9.5,
+    "Kansas City Chiefs": 10.5,
+    "Las Vegas Raiders": 5.5,
+    "Los Angeles Chargers": 10.5,
+    "Dallas Cowboys": 9.5,
+    "New York Giants": 7.5,
+    "Philadelphia Eagles": 10.5,
+    "Washington Commanders": 7.5,
+    "Chicago Bears": 9.5,
+    "Detroit Lions": 10.5,
+    "Green Bay Packers": 10.5,
+    "Minnesota Vikings": 8.5,
+    "Atlanta Falcons": 6.5,
+    "Carolina Panthers": 7.5,
+    "New Orleans Saints": 8.5,
+    "Tampa Bay Buccaneers": 8.5,
+    "Arizona Cardinals": 4.5,
+    "Los Angeles Rams": 11.5,
+    "San Francisco 49ers": 10.5,
+    "Seattle Seahawks": 10.5,
+}
+
 def get_all_teams():
     """Flatten all teams from NFL_STRUCTURE."""
     all_teams = []
@@ -218,6 +254,10 @@ selected_team = st.sidebar.selectbox("Select Team:", NFL_STRUCTURE[selected_conf
 st.sidebar.markdown("")
 w, l = calculate_team_record(selected_team)
 st.sidebar.metric("Projected Record", f"{w}-{l}", label_visibility="collapsed")
+
+# --- VEGAS O/U ODDS ---
+vegas_ou = VEGAS_ODDS.get(selected_team, "N/A")
+st.sidebar.metric("Vegas O/U", f"{vegas_ou}", label_visibility="collapsed")
 
 # --- DIVISION STANDINGS WITH SOS (COMPACT BOX) ---
 st.sidebar.markdown("---")
