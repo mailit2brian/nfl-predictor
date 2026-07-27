@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 import os
-from nfl_data import NFL_SCHEDULE
+from nfl_data import NFL_SCHEDULE, NFL_SOS
 
 # Define conferences and divisions structure
 NFL_STRUCTURE = {
@@ -154,19 +154,26 @@ st.sidebar.markdown("")
 w, l = calculate_team_record(selected_team)
 st.sidebar.metric("Projected Record", f"{w}-{l}", label_visibility="collapsed")
 
-# --- DIVISION STANDINGS (COMPACT BOX) ---
+# --- DIVISION STANDINGS WITH SOS (COMPACT BOX) ---
 st.sidebar.markdown("---")
 st.sidebar.subheader("Division Standings")
 division_teams = NFL_STRUCTURE[selected_conference][selected_division]
 standings = []
 for team in division_teams:
     tw, tl = calculate_team_record(team)
-    standings.append((team, tw, tl))
+    sos_data = NFL_SOS.get(team, {})
+    sos_rank = sos_data.get("rank", "-")
+    opp_win_pct = sos_data.get("opp_win_pct", 0)
+    standings.append((team, tw, tl, sos_rank, opp_win_pct))
 
 standings.sort(key=lambda x: (x[1], -x[2]), reverse=True)
 
-for idx, (team, tw, tl) in enumerate(standings, start=1):
-    st.sidebar.caption(f"{idx}. {team} ({tw}-{tl})")
+# Display header
+st.sidebar.caption("Rank | Team | W-L | SOS | Opp. Win %")
+st.sidebar.caption("-----|------|-----|-----|----------")
+
+for idx, (team, tw, tl, sos_rank, opp_pct) in enumerate(standings, start=1):
+    st.sidebar.caption(f"{idx}. {team} ({tw}-{tl}) | {sos_rank} | .{int(opp_pct * 1000)}")
 
 st.title(f"2026 Schedule & Predictions: {selected_team}")
 st.markdown(f"*{selected_conference} - {selected_division}* (Editing as: **{username}**)")
