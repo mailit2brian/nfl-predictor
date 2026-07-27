@@ -250,14 +250,13 @@ selected_conference = st.sidebar.selectbox("Select Conference:", list(NFL_STRUCT
 selected_division = st.sidebar.selectbox("Select Division:", list(NFL_STRUCTURE[selected_conference].keys()))
 selected_team = st.sidebar.selectbox("Select Team:", NFL_STRUCTURE[selected_conference][selected_division])
 
-# --- PROJECTED RECORD (COMPACT IN BOX) ---
+# --- PROJECTED RECORD AND VEGAS O/U ---
 st.sidebar.markdown("")
 w, l = calculate_team_record(selected_team)
-st.sidebar.metric("Projected Record", f"{w}-{l}", label_visibility="collapsed")
-
-# --- VEGAS O/U ODDS ---
 vegas_ou = VEGAS_ODDS.get(selected_team, "N/A")
-st.sidebar.metric("Vegas O/U", f"{vegas_ou}", label_visibility="collapsed")
+
+st.sidebar.write(f"**Projected Record:** {w}-{l}")
+st.sidebar.write(f"**Vegas O/U:** {vegas_ou}")
 
 # --- DIVISION STANDINGS WITH SOS (COMPACT BOX) ---
 st.sidebar.markdown("---")
