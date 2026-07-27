@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 import os
+import base64
 from nfl_data import NFL_SCHEDULE, NFL_SOS
 
 # Define conferences and divisions structure
@@ -42,7 +43,7 @@ def generate_game_id(week_num, team1, team2):
     teams = sorted([team1, team2])
     return f"week{week_num}_{teams[0].replace(' ', '')}vs{teams[1].replace(' ', '')}"
 
-def load_user_picks(username):
+def load_user_picks_local(username):
     """Load picks from local JSON file."""
     local_file = f"picks_{username}.json"
     if os.path.exists(local_file):
@@ -53,14 +54,69 @@ def load_user_picks(username):
             return {}
     return {}
 
-def save_user_pick(username, game_id, pick_result):
-    """Save a single pick to local JSON file."""
-    picks_dict = st.session_state.get("user_predictions", {})
+def load_user_picks_github(username):
+    """Load picks from GitHub."""
+    try:
+        token = st.secrets.get("GITHUB_TOKEN")
+        if not token:
+            return {}
+        
+        import requests
+        headers = {"Authorization": f"token {token}"}
+        url = f"https://api.github.com/repos/mailit2brian/nfl-predictor/contents/picks_{username}.json"
+        
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            content = response.json()
+            file_content = base64.b64decode(content["content"]).decode()
+            return json.loads(file_content)
+        else:
+            return {}
+    except:
+        return {}
+
+def save_user_pick_github(username, picks_dict):
+    """Save picks to GitHub."""
+    try:
+        token = st.secrets.get("GITHUB_TOKEN")
+        if not token:
+            return False
+        
+        import requests
+        headers = {"Authorization": f"token {token}"}
+        url = f"https://api.github.com/repos/mailit2brian/nfl-predictor/contents/picks_{username}.json"
+        
+        # Prepare the file content
+        file_content = json.dumps(picks_dict, indent=2)
+        file_content_b64 = base64.b64encode(file_content.encode()).decode()
+        
+        # Check if file exists to get the SHA
+        response = requests.get(url, headers=headers)
+        sha = None
+        if response.status_code == 200:
+            sha = response.json()["sha"]
+        
+        # Prepare the request
+        data = {
+            "message": f"Update picks for {username}",
+            "content": file_content_b64,
+        }
+        if sha:
+            data["sha"] = sha
+        
+        response = requests.put(url, headers=headers, json=data)
+        return response.status_code in [200, 201]
+    except Exception as e:
+        st.warning(f"Could not sync to GitHub: {e}")
+        return False
+
+def save_user_pick_local(username, picks_dict):
+    """Save picks to local JSON file."""
     try:
         with open(f"picks_{username}.json", "w") as f:
-            f.write(json.dumps(picks_dict))
+            f.write(json.dumps(picks_dict, indent=2))
     except Exception as e:
-        st.error(f"Error saving pick: {e}")
+        st.error(f"Error saving pick locally: {e}")
 
 def get_pick_for_game(game_id, home_team, away_team, team_perspective):
     """Retrieve pick for a game from a team's perspective."""
@@ -85,17 +141,19 @@ def set_pick_for_game(gid, ht, at, tp, wk):
     if win_or_loss == "No Pick":
         if gid in st.session_state.user_predictions:
             del st.session_state.user_predictions[gid]
-        return
-    
-    # Save the WINNING team name, not home_win/away_win
-    if win_or_loss == "Win":
-        pick_result = tp  # Team perspective wins
     else:
-        # Determine which team loses (the one that's NOT the perspective)
-        pick_result = ht if tp == at else at  # The other team wins
+        # Save the WINNING team name, not home_win/away_win
+        if win_or_loss == "Win":
+            pick_result = tp  # Team perspective wins
+        else:
+            # Determine which team loses (the one that's NOT the perspective)
+            pick_result = ht if tp == at else at  # The other team wins
+        
+        st.session_state.user_predictions[gid] = pick_result
     
-    st.session_state.user_predictions[gid] = pick_result
-    save_user_pick(username, gid, pick_result)
+    # Save to both local and GitHub
+    save_user_pick_local(username, st.session_state.user_predictions)
+    save_user_pick_github(username, st.session_state.user_predictions)
 
 def calculate_team_record(team_name):
     """Calculate W-L record from picks."""
@@ -138,10 +196,17 @@ if not username:
 
 if "current_user" not in st.session_state or st.session_state.current_user != username:
     st.session_state.current_user = username
-    st.session_state.user_predictions = load_user_picks(username)
+    # Load from local first (for current session data)
+    local_picks = load_user_picks_local(username)
+    # Load from GitHub as backup
+    github_picks = load_user_picks_github(username)
+    # Prioritize local picks if they exist, otherwise use GitHub
+    st.session_state.user_predictions = local_picks if local_picks else github_picks
 
 if "user_predictions" not in st.session_state:
-    st.session_state.user_predictions = load_user_picks(username)
+    local_picks = load_user_picks_local(username)
+    github_picks = load_user_picks_github(username)
+    st.session_state.user_predictions = local_picks if local_picks else github_picks
 
 # --- MAIN UI ---
 st.sidebar.markdown("---")
