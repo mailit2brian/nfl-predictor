@@ -319,7 +319,7 @@ NFL_SCHEDULE = {
         "vs. San Francisco 49ers",
         "at Miami Dolphins",
         "vs. Kansas City Chiefs",
-        "vs. Denver Broncos"
+        "at Denver Broncos"
     ],
     "Dallas Cowboys": [
         "at New York Giants",
