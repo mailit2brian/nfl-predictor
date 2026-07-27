@@ -642,3 +642,39 @@ NFL_SCHEDULE = {
         "at Los Angeles Rams"
     ]
 }
+
+# 2026 NFL Strength of Schedule Rankings (based on 2025 opponent win percentages)
+NFL_SOS = {
+    "Cleveland Browns": {"rank": 1, "opp_win_pct": 0.429},
+    "New Orleans Saints": {"rank": 2, "opp_win_pct": 0.434},
+    "Cincinnati Bengals": {"rank": 3, "opp_win_pct": 0.450},
+    "Atlanta Falcons": {"rank": 4, "opp_win_pct": 0.465},
+    "Indianapolis Colts": {"rank": 5, "opp_win_pct": 0.465},
+    "Detroit Lions": {"rank": 6, "opp_win_pct": 0.467},
+    "Houston Texans": {"rank": 7, "opp_win_pct": 0.474},
+    "Tennessee Titans": {"rank": 8, "opp_win_pct": 0.476},
+    "Baltimore Ravens": {"rank": 9, "opp_win_pct": 0.479},
+    "Philadelphia Eagles": {"rank": 10, "opp_win_pct": 0.481},
+    "Jacksonville Jaguars": {"rank": 11, "opp_win_pct": 0.490},
+    "Tampa Bay Buccaneers": {"rank": 12, "opp_win_pct": 0.491},
+    "Dallas Cowboys": {"rank": 13, "opp_win_pct": 0.493},
+    "Pittsburgh Steelers": {"rank": 14, "opp_win_pct": 0.495},
+    "San Francisco 49ers": {"rank": 15, "opp_win_pct": 0.497},
+    "New York Giants": {"rank": 16, "opp_win_pct": 0.498},
+    "Washington Commanders": {"rank": 17, "opp_win_pct": 0.502},
+    "Denver Broncos": {"rank": 18, "opp_win_pct": 0.512},
+    "Seattle Seahawks": {"rank": 19, "opp_win_pct": 0.514},
+    "Los Angeles Rams": {"rank": 20, "opp_win_pct": 0.516},
+    "New York Jets": {"rank": 21, "opp_win_pct": 0.517},
+    "Minnesota Vikings": {"rank": 22, "opp_win_pct": 0.519},
+    "Carolina Panthers": {"rank": 23, "opp_win_pct": 0.521},
+    "Los Angeles Chargers": {"rank": 24, "opp_win_pct": 0.522},
+    "Buffalo Bills": {"rank": 25, "opp_win_pct": 0.528},
+    "Las Vegas Raiders": {"rank": 26, "opp_win_pct": 0.529},
+    "New England Patriots": {"rank": 27, "opp_win_pct": 0.531},
+    "Kansas City Chiefs": {"rank": 28, "opp_win_pct": 0.536},
+    "Green Bay Packers": {"rank": 29, "opp_win_pct": 0.538},
+    "Arizona Cardinals": {"rank": 30, "opp_win_pct": 0.538},
+    "Miami Dolphins": {"rank": 31, "opp_win_pct": 0.542},
+    "Chicago Bears": {"rank": 32, "opp_win_pct": 0.550}
+}
