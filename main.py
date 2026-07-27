@@ -187,7 +187,7 @@ def calculate_team_record(team_name):
     return w, l
 
 # --- SIDEBAR: USER PROFILE SELECTION ---
-st.sidebar.title("NFL Navigation")
+st.sidebar.title("Core Four Picks")
 st.sidebar.subheader("User Profile")
 username = st.sidebar.text_input("Enter Your Name:", value="My Picks").strip()
 
