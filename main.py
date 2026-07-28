@@ -424,60 +424,93 @@ with col1:
     pass
 with col2:
     if st.sidebar.button("🖨️", key="print_divisions", help="Print", use_container_width=True):
-        # Build divisions HTML with optimized sizing for one page
+        # Build divisions HTML - Landscape with side-by-side layout
         divisions_html = """
         <!DOCTYPE html>
         <html>
         <head>
             <title>2026 NFL Division Standings</title>
             <style>
+                @page { size: landscape; margin: 0.3in; }
                 * { margin: 0; padding: 0; box-sizing: border-box; }
-                body { font-family: Arial, sans-serif; margin: 0.4in; font-size: 9px; line-height: 1.3; }
-                h1 { text-align: center; font-size: 16px; margin-bottom: 8px; font-weight: bold; }
-                h2 { font-size: 11px; margin-top: 6px; margin-bottom: 3px; font-weight: bold; color: #333; }
-                h3 { font-size: 8px; margin-top: 3px; margin-bottom: 2px; font-weight: bold; color: #555; }
-                table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
-                th, td { border: 0.5px solid #999; padding: 2px 3px; text-align: left; font-size: 8px; }
-                th { background-color: #e8e8e8; font-weight: bold; }
+                body { font-family: Arial, sans-serif; font-size: 10px; line-height: 1.2; }
+                .container { display: flex; gap: 15px; }
+                .conference { flex: 1; }
+                .conf-title { font-size: 13px; font-weight: bold; text-align: center; margin-bottom: 8px; border-bottom: 2px solid #000; padding-bottom: 4px; }
+                .division { margin-bottom: 6px; page-break-inside: avoid; }
+                .div-title { font-size: 10px; font-weight: bold; margin-bottom: 2px; color: #333; }
+                table { width: 100%; border-collapse: collapse; font-size: 9px; }
+                th, td { border: 0.5px solid #999; padding: 2px 3px; text-align: left; }
+                th { background-color: #e8e8e8; font-weight: bold; font-size: 8px; }
+                td { font-size: 8px; }
                 tr:nth-child(even) { background-color: #f9f9f9; }
-                .conf-section { margin-bottom: 3px; page-break-inside: avoid; }
+                h1 { text-align: center; font-size: 16px; margin-bottom: 10px; }
                 @media print { 
-                    body { margin: 0.2in; font-size: 8px; }
-                    h1 { font-size: 14px; margin-bottom: 6px; }
-                    h2 { font-size: 10px; margin-top: 4px; margin-bottom: 2px; }
-                    h3 { font-size: 7px; margin-top: 2px; margin-bottom: 1px; }
-                    table { margin-bottom: 3px; }
-                    th, td { padding: 1px 2px; font-size: 7px; }
+                    body { font-size: 10px; }
+                    .conf-title { font-size: 12px; }
+                    .div-title { font-size: 9px; }
+                    table { font-size: 8px; }
                 }
             </style>
         </head>
         <body>
             <h1>2026 NFL Division Standings</h1>
+            <div class="container">
         """
         
-        for conf_name, divs in NFL_STRUCTURE.items():
-            divisions_html += f'<div class="conf-section"><h2>{conf_name}</h2>'
+        # Build AFC (left column)
+        divisions_html += '<div class="conference">'
+        divisions_html += '<div class="conf-title">AFC</div>'
+        
+        for div_name, teams in NFL_STRUCTURE["AFC"].items():
+            divisions_html += '<div class="division">'
+            divisions_html += f'<div class="div-title">{div_name}</div>'
+            divisions_html += "<table><tr><th>R</th><th>Team</th><th>W-L</th><th>SOS</th><th>%</th></tr>"
             
-            for div_name, teams in divs.items():
-                divisions_html += f"<h3>{div_name}</h3>"
-                divisions_html += "<table><tr><th>R</th><th>Team</th><th>W-L</th><th>SOS</th><th>%</th></tr>"
-                
-                team_records = []
-                for t in teams:
-                    tw, tl = calculate_team_record(t)
-                    sos_data = NFL_SOS.get(t, {})
-                    sos_rank = sos_data.get("rank", "-")
-                    opp_win_pct = sos_data.get("opp_win_pct", 0)
-                    team_records.append((t, tw, tl, sos_rank, opp_win_pct))
-                
-                team_records.sort(key=lambda x: (x[1], -x[2]), reverse=True)
-                
-                for idx, (team, tw, tl, sos_rank, opp_pct) in enumerate(team_records, start=1):
-                    divisions_html += f"<tr><td>{idx}</td><td>{team}</td><td>{tw}-{tl}</td><td>{sos_rank}</td><td>.{int(opp_pct * 1000)}</td></tr>"
-                
-                divisions_html += "</table>"
+            team_records = []
+            for t in teams:
+                tw, tl = calculate_team_record(t)
+                sos_data = NFL_SOS.get(t, {})
+                sos_rank = sos_data.get("rank", "-")
+                opp_win_pct = sos_data.get("opp_win_pct", 0)
+                team_records.append((t, tw, tl, sos_rank, opp_win_pct))
             
+            team_records.sort(key=lambda x: (x[1], -x[2]), reverse=True)
+            
+            for idx, (team, tw, tl, sos_rank, opp_pct) in enumerate(team_records, start=1):
+                divisions_html += f"<tr><td>{idx}</td><td>{team}</td><td>{tw}-{tl}</td><td>{sos_rank}</td><td>.{int(opp_pct * 1000)}</td></tr>"
+            
+            divisions_html += "</table>"
             divisions_html += '</div>'
+        
+        divisions_html += '</div>'
+        
+        # Build NFC (right column)
+        divisions_html += '<div class="conference">'
+        divisions_html += '<div class="conf-title">NFC</div>'
+        
+        for div_name, teams in NFL_STRUCTURE["NFC"].items():
+            divisions_html += '<div class="division">'
+            divisions_html += f'<div class="div-title">{div_name}</div>'
+            divisions_html += "<table><tr><th>R</th><th>Team</th><th>W-L</th><th>SOS</th><th>%</th></tr>"
+            
+            team_records = []
+            for t in teams:
+                tw, tl = calculate_team_record(t)
+                sos_data = NFL_SOS.get(t, {})
+                sos_rank = sos_data.get("rank", "-")
+                opp_win_pct = sos_data.get("opp_win_pct", 0)
+                team_records.append((t, tw, tl, sos_rank, opp_win_pct))
+            
+            team_records.sort(key=lambda x: (x[1], -x[2]), reverse=True)
+            
+            for idx, (team, tw, tl, sos_rank, opp_pct) in enumerate(team_records, start=1):
+                divisions_html += f"<tr><td>{idx}</td><td>{team}</td><td>{tw}-{tl}</td><td>{sos_rank}</td><td>.{int(opp_pct * 1000)}</td></tr>"
+            
+            divisions_html += "</table>"
+            divisions_html += '</div>'
+        
+        divisions_html += '</div></div>'
         
         divisions_html += """
         </body>
