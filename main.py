@@ -368,23 +368,25 @@ with col1:
     pass
 with col2:
     if st.sidebar.button("🖨️", key="print_playoff", help="Print", use_container_width=True):
-        # Build playoff HTML with onafterprint cleanup
-        playoff_html = """
+        # Build playoff HTML with username
+        playoff_html = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <title>2026 NFL Playoff Picture</title>
             <style>
-                body { font-family: Arial, sans-serif; margin: 20px; }
-                h1 { text-align: center; font-size: 24px; }
-                h2 { font-size: 18px; margin-top: 25px; border-bottom: 2px solid #000; padding-bottom: 10px; }
-                h3 { font-size: 14px; margin-top: 15px; font-weight: bold; }
-                .seed { margin-left: 20px; font-size: 13px; line-height: 1.6; }
-                @media print { body { margin: 10px; } }
+                body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                h1 {{ text-align: center; font-size: 24px; margin-bottom: 5px; }}
+                .username {{ text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 20px; color: #333; }}
+                h2 {{ font-size: 18px; margin-top: 25px; border-bottom: 2px solid #000; padding-bottom: 10px; }}
+                h3 {{ font-size: 14px; margin-top: 15px; font-weight: bold; }}
+                .seed {{ margin-left: 20px; font-size: 13px; line-height: 1.6; }}
+                @media print {{ body {{ margin: 10px; }} }}
             </style>
         </head>
         <body>
             <h1>2026 NFL Playoff Picture</h1>
+            <div class="username">{username}</div>
         """
         
         for conf_name, data in playoff_data.items():
@@ -427,43 +429,45 @@ with col1:
     pass
 with col2:
     if st.sidebar.button("🖨️", key="print_divisions", help="Print", use_container_width=True):
-        # Build divisions HTML - Landscape with side-by-side layout and FIXED column widths
-        divisions_html = """
+        # Build divisions HTML - Landscape with side-by-side layout and FIXED column widths, with username
+        divisions_html = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <title>2026 NFL Division Standings</title>
             <style>
-                @page { size: landscape; margin: 0.3in; }
-                * { margin: 0; padding: 0; box-sizing: border-box; }
-                body { font-family: Arial, sans-serif; font-size: 10px; line-height: 1.2; }
-                .container { display: flex; gap: 12px; }
-                .conference { flex: 1; }
-                .conf-title { font-size: 13px; font-weight: bold; text-align: center; margin-bottom: 8px; border-bottom: 2px solid #000; padding-bottom: 4px; }
-                .division { margin-bottom: 6px; page-break-inside: avoid; }
-                .div-title { font-size: 10px; font-weight: bold; margin-bottom: 2px; color: #333; }
-                table { width: 100%; border-collapse: collapse; font-size: 9px; table-layout: fixed; }
-                th, td { border: 0.5px solid #999; padding: 2px 3px; text-align: left; overflow: hidden; }
-                th { background-color: #e8e8e8; font-weight: bold; font-size: 8px; }
-                td { font-size: 8px; }
-                tr:nth-child(even) { background-color: #f9f9f9; }
-                h1 { text-align: center; font-size: 16px; margin-bottom: 10px; }
+                @page {{ size: landscape; margin: 0.3in; }}
+                * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+                body {{ font-family: Arial, sans-serif; font-size: 10px; line-height: 1.2; }}
+                h1 {{ text-align: center; font-size: 16px; margin-bottom: 5px; }}
+                .username {{ text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #333; }}
+                .container {{ display: flex; gap: 12px; }}
+                .conference {{ flex: 1; }}
+                .conf-title {{ font-size: 13px; font-weight: bold; text-align: center; margin-bottom: 8px; border-bottom: 2px solid #000; padding-bottom: 4px; }}
+                .division {{ margin-bottom: 6px; page-break-inside: avoid; }}
+                .div-title {{ font-size: 10px; font-weight: bold; margin-bottom: 2px; color: #333; }}
+                table {{ width: 100%; border-collapse: collapse; font-size: 9px; table-layout: fixed; }}
+                th, td {{ border: 0.5px solid #999; padding: 2px 3px; text-align: left; overflow: hidden; }}
+                th {{ background-color: #e8e8e8; font-weight: bold; font-size: 8px; }}
+                td {{ font-size: 8px; }}
+                tr:nth-child(even) {{ background-color: #f9f9f9; }}
                 /* Fixed column widths */
-                .col-r { width: 20px; }
-                .col-team { width: 100px; }
-                .col-wl { width: 40px; }
-                .col-sos { width: 35px; }
-                .col-pct { width: 30px; }
-                @media print { 
-                    body { font-size: 10px; }
-                    .conf-title { font-size: 12px; }
-                    .div-title { font-size: 9px; }
-                    table { font-size: 8px; }
-                }
+                .col-r {{ width: 20px; }}
+                .col-team {{ width: 100px; }}
+                .col-wl {{ width: 40px; }}
+                .col-sos {{ width: 35px; }}
+                .col-pct {{ width: 30px; }}
+                @media print {{ 
+                    body {{ font-size: 10px; }}
+                    .conf-title {{ font-size: 12px; }}
+                    .div-title {{ font-size: 9px; }}
+                    table {{ font-size: 8px; }}
+                }}
             </style>
         </head>
         <body>
             <h1>2026 NFL Division Standings</h1>
+            <div class="username">{username}</div>
             <div class="container">
         """
         
