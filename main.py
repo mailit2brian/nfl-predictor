@@ -424,7 +424,7 @@ with col1:
     pass
 with col2:
     if st.sidebar.button("🖨️", key="print_divisions", help="Print", use_container_width=True):
-        # Build divisions HTML - Landscape with side-by-side layout
+        # Build divisions HTML - Landscape with side-by-side layout and FIXED column widths
         divisions_html = """
         <!DOCTYPE html>
         <html>
@@ -434,17 +434,23 @@ with col2:
                 @page { size: landscape; margin: 0.3in; }
                 * { margin: 0; padding: 0; box-sizing: border-box; }
                 body { font-family: Arial, sans-serif; font-size: 10px; line-height: 1.2; }
-                .container { display: flex; gap: 15px; }
+                .container { display: flex; gap: 12px; }
                 .conference { flex: 1; }
                 .conf-title { font-size: 13px; font-weight: bold; text-align: center; margin-bottom: 8px; border-bottom: 2px solid #000; padding-bottom: 4px; }
                 .division { margin-bottom: 6px; page-break-inside: avoid; }
                 .div-title { font-size: 10px; font-weight: bold; margin-bottom: 2px; color: #333; }
-                table { width: 100%; border-collapse: collapse; font-size: 9px; }
-                th, td { border: 0.5px solid #999; padding: 2px 3px; text-align: left; }
+                table { width: 100%; border-collapse: collapse; font-size: 9px; table-layout: fixed; }
+                th, td { border: 0.5px solid #999; padding: 2px 3px; text-align: left; overflow: hidden; }
                 th { background-color: #e8e8e8; font-weight: bold; font-size: 8px; }
                 td { font-size: 8px; }
                 tr:nth-child(even) { background-color: #f9f9f9; }
                 h1 { text-align: center; font-size: 16px; margin-bottom: 10px; }
+                /* Fixed column widths */
+                .col-r { width: 20px; }
+                .col-team { width: 100px; }
+                .col-wl { width: 40px; }
+                .col-sos { width: 35px; }
+                .col-pct { width: 30px; }
                 @media print { 
                     body { font-size: 10px; }
                     .conf-title { font-size: 12px; }
@@ -465,7 +471,7 @@ with col2:
         for div_name, teams in NFL_STRUCTURE["AFC"].items():
             divisions_html += '<div class="division">'
             divisions_html += f'<div class="div-title">{div_name}</div>'
-            divisions_html += "<table><tr><th>R</th><th>Team</th><th>W-L</th><th>SOS</th><th>%</th></tr>"
+            divisions_html += "<table><tr><th class='col-r'>R</th><th class='col-team'>Team</th><th class='col-wl'>W-L</th><th class='col-sos'>SOS</th><th class='col-pct'>%</th></tr>"
             
             team_records = []
             for t in teams:
@@ -478,7 +484,7 @@ with col2:
             team_records.sort(key=lambda x: (x[1], -x[2]), reverse=True)
             
             for idx, (team, tw, tl, sos_rank, opp_pct) in enumerate(team_records, start=1):
-                divisions_html += f"<tr><td>{idx}</td><td>{team}</td><td>{tw}-{tl}</td><td>{sos_rank}</td><td>.{int(opp_pct * 1000)}</td></tr>"
+                divisions_html += f"<tr><td class='col-r'>{idx}</td><td class='col-team'>{team}</td><td class='col-wl'>{tw}-{tl}</td><td class='col-sos'>{sos_rank}</td><td class='col-pct'>.{int(opp_pct * 1000)}</td></tr>"
             
             divisions_html += "</table>"
             divisions_html += '</div>'
@@ -492,7 +498,7 @@ with col2:
         for div_name, teams in NFL_STRUCTURE["NFC"].items():
             divisions_html += '<div class="division">'
             divisions_html += f'<div class="div-title">{div_name}</div>'
-            divisions_html += "<table><tr><th>R</th><th>Team</th><th>W-L</th><th>SOS</th><th>%</th></tr>"
+            divisions_html += "<table><tr><th class='col-r'>R</th><th class='col-team'>Team</th><th class='col-wl'>W-L</th><th class='col-sos'>SOS</th><th class='col-pct'>%</th></tr>"
             
             team_records = []
             for t in teams:
@@ -505,7 +511,7 @@ with col2:
             team_records.sort(key=lambda x: (x[1], -x[2]), reverse=True)
             
             for idx, (team, tw, tl, sos_rank, opp_pct) in enumerate(team_records, start=1):
-                divisions_html += f"<tr><td>{idx}</td><td>{team}</td><td>{tw}-{tl}</td><td>{sos_rank}</td><td>.{int(opp_pct * 1000)}</td></tr>"
+                divisions_html += f"<tr><td class='col-r'>{idx}</td><td class='col-team'>{team}</td><td class='col-wl'>{tw}-{tl}</td><td class='col-sos'>{sos_rank}</td><td class='col-pct'>.{int(opp_pct * 1000)}</td></tr>"
             
             divisions_html += "</table>"
             divisions_html += '</div>'
