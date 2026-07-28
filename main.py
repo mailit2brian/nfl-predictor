@@ -366,8 +366,7 @@ col1, col2 = st.sidebar.columns([0.8, 0.2])
 with col1:
     st.sidebar.subheader("Playoff Picture")
 with col2:
-    if st.sidebar.button("🖨️", key="print_playoff", help="Print Playoff Picture", use_container_width=True):
-        st.session_state.show_playoff_print = True
+    print_playoff = st.sidebar.button("🖨️", key="print_playoff", help="Print Playoff Picture", use_container_width=True)
 
 # Display playoff picture
 for conf_name, data in playoff_data.items():
@@ -386,65 +385,75 @@ col1, col2 = st.sidebar.columns([0.8, 0.2])
 with col1:
     st.sidebar.markdown("**All Divisions Standings**")
 with col2:
-    if st.sidebar.button("🖨️", key="print_divisions", help="Print All Divisions", use_container_width=True):
-        st.session_state.show_divisions_print = True
+    print_divisions = st.sidebar.button("🖨️", key="print_divisions", help="Print All Divisions", use_container_width=True)
 
-# --- PRINT MODAL SECTIONS (hidden by default, shown when print clicked) ---
-if st.session_state.get("show_playoff_print", False):
+# --- PRINT PLAYOFF PICTURE ---
+if print_playoff:
     st.markdown("---")
-    st.markdown("## 📋 Print Preview - Playoff Picture")
-    st.markdown("*(Click below to print or save as PDF)*")
+    st.markdown("## 📋 Playoff Picture - Ready to Print")
     
     playoff_print_html = """
-    <style>
-    .print-container { font-family: Arial, sans-serif; padding: 20px; }
-    .print-header { text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 20px; }
-    .conf-title { font-size: 18px; font-weight: bold; margin-top: 20px; margin-bottom: 10px; }
-    .div-section { margin-bottom: 15px; }
-    .seed-line { margin-left: 20px; font-size: 14px; margin-bottom: 5px; }
-    </style>
-    <div class="print-container">
+    <html>
+    <head>
+        <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            .print-header { text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 30px; }
+            .conf-title { font-size: 18px; font-weight: bold; margin-top: 25px; margin-bottom: 15px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+            .section { margin-bottom: 20px; }
+            .section-title { font-weight: bold; margin-top: 12px; margin-bottom: 8px; font-size: 14px; }
+            .seed-line { margin-left: 25px; font-size: 13px; margin-bottom: 6px; }
+            @media print {
+                body { margin: 0; padding: 10px; }
+                .print-header { font-size: 20px; }
+            }
+        </style>
+    </head>
+    <body>
         <div class="print-header">2026 NFL Playoff Picture</div>
     """
     
     for conf_name, data in playoff_data.items():
         playoff_print_html += f'<div class="conf-title">{conf_name}</div>'
-        playoff_print_html += '<div style="margin-left: 15px;">'
-        playoff_print_html += '<strong>Division Winners (Seeds 1-4)</strong>'
+        playoff_print_html += '<div class="section">'
+        playoff_print_html += '<div class="section-title">Division Winners (Seeds 1-4)</div>'
         for idx, (t_name, tw, tl) in enumerate(data["div_winners"], start=1):
             playoff_print_html += f'<div class="seed-line">Seed {idx}: {t_name} ({tw}-{tl})</div>'
-        playoff_print_html += '<strong style="display: block; margin-top: 10px;">Wild Card Teams (Seeds 5-7)</strong>'
+        playoff_print_html += '<div class="section-title">Wild Card Teams (Seeds 5-7)</div>'
         for idx, (t_name, tw, tl) in enumerate(data["wild_card"], start=5):
             playoff_print_html += f'<div class="seed-line">Seed {idx}: {t_name} ({tw}-{tl})</div>'
         playoff_print_html += '</div>'
     
-    playoff_print_html += '</div>'
+    playoff_print_html += '</body></html>'
+    
     st.markdown(playoff_print_html, unsafe_allow_html=True)
-    st.markdown("""
-    <script>
-    window.print();
-    </script>
-    """, unsafe_allow_html=True)
-    st.session_state.show_playoff_print = False
+    st.write("<script>window.print();</script>", unsafe_allow_html=True)
 
-if st.session_state.get("show_divisions_print", False):
+# --- PRINT ALL DIVISIONS ---
+if print_divisions:
     st.markdown("---")
-    st.markdown("## 📋 Print Preview - All Division Standings")
-    st.markdown("*(Click below to print or save as PDF)*")
+    st.markdown("## 📋 All Division Standings - Ready to Print")
     
     divisions_print_html = """
-    <style>
-    .print-container { font-family: Arial, sans-serif; padding: 15px; font-size: 12px; }
-    .print-header { text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 20px; }
-    .conf-section { margin-bottom: 25px; }
-    .conf-title { font-size: 16px; font-weight: bold; margin-bottom: 15px; }
-    .div-title { font-size: 13px; font-weight: bold; margin-top: 10px; margin-bottom: 8px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-    th, td { border: 1px solid #999; padding: 6px; text-align: left; font-size: 11px; }
-    th { background-color: #e8e8e8; font-weight: bold; }
-    tr:nth-child(even) { background-color: #f9f9f9; }
-    </style>
-    <div class="print-container">
+    <html>
+    <head>
+        <style>
+            body { font-family: Arial, sans-serif; padding: 15px; font-size: 11px; }
+            .print-header { text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 20px; }
+            .conf-section { margin-bottom: 30px; }
+            .conf-title { font-size: 16px; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid #333; padding-bottom: 8px; }
+            .div-title { font-size: 12px; font-weight: bold; margin-top: 15px; margin-bottom: 8px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            th, td { border: 1px solid #999; padding: 6px; text-align: left; font-size: 10px; }
+            th { background-color: #e8e8e8; font-weight: bold; }
+            tr:nth-child(even) { background-color: #f9f9f9; }
+            @media print {
+                body { margin: 0; padding: 8px; }
+                .print-header { font-size: 18px; }
+                .conf-section { page-break-inside: avoid; }
+            }
+        </style>
+    </head>
+    <body>
         <div class="print-header">2026 NFL Division Standings</div>
     """
     
@@ -472,11 +481,7 @@ if st.session_state.get("show_divisions_print", False):
         
         divisions_print_html += '</div>'
     
-    divisions_print_html += '</div>'
+    divisions_print_html += '</body></html>'
+    
     st.markdown(divisions_print_html, unsafe_allow_html=True)
-    st.markdown("""
-    <script>
-    window.print();
-    </script>
-    """, unsafe_allow_html=True)
-    st.session_state.show_divisions_print = False
+    st.write("<script>window.print();</script>", unsafe_allow_html=True)
