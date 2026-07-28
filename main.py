@@ -222,31 +222,6 @@ def calculate_team_record(team_name):
     
     return w, l
 
-# Add print CSS
-st.markdown("""
-<style>
-@media print {
-    body { font-family: Arial, sans-serif; }
-    .no-print { display: none !important; }
-    .print-section { page-break-inside: avoid; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background-color: #f2f2f2; font-weight: bold; }
-}
-.print-button {
-    cursor: pointer;
-    padding: 5px 10px;
-    background-color: #f0f0f0;
-    border: 1px solid #ccc;
-    border-radius: 3px;
-    font-size: 14px;
-}
-.print-button:hover {
-    background-color: #e0e0e0;
-}
-</style>
-""", unsafe_allow_html=True)
-
 # --- SIDEBAR: USER PROFILE SELECTION ---
 st.sidebar.title("Core Four Picks")
 st.sidebar.subheader("User Profile")
@@ -360,7 +335,6 @@ for week_num, game_info in enumerate(schedule_list, start=1):
     st.markdown("---")
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("Playoff Picture")
 
 # Build playoff picture data
 playoff_data = {}
@@ -387,37 +361,15 @@ for conf_name, divs in NFL_STRUCTURE.items():
         "wild_card": wild_card_teams
     }
 
-# Display playoff picture with print button
-col1, col2 = st.sidebar.columns([0.85, 0.15])
+# --- PLAYOFF PICTURE SECTION ---
+col1, col2 = st.sidebar.columns([0.8, 0.2])
 with col1:
-    st.sidebar.markdown("**Playoff Picture**")
+    st.sidebar.subheader("Playoff Picture")
 with col2:
-    if st.sidebar.button("🖨️", key="print_playoff", help="Print Playoff Picture"):
-        # Create printable HTML
-        playoff_html = "<html><head><style>"
-        playoff_html += "body { font-family: Arial, sans-serif; margin: 20px; }"
-        playoff_html += "h2 { margin-top: 20px; page-break-inside: avoid; }"
-        playoff_html += "p { margin: 5px 0; }"
-        playoff_html += ".seed { margin-left: 20px; }"
-        playoff_html += "</style></head><body>"
-        playoff_html += "<h1>2026 NFL Playoff Picture</h1>"
-        
-        for conf_name, data in playoff_data.items():
-            playoff_html += f"<h2>{conf_name}</h2>"
-            playoff_html += "<h3>Division Winners (Seeds 1-4)</h3>"
-            for idx, (t_name, tw, tl) in enumerate(data["div_winners"], start=1):
-                playoff_html += f'<p class="seed"><strong>Seed {idx}:</strong> {t_name} ({tw}-{tl})</p>'
-            
-            playoff_html += "<h3>Wild Card Teams (Seeds 5-7)</h3>"
-            for idx, (t_name, tw, tl) in enumerate(data["wild_card"], start=5):
-                playoff_html += f'<p class="seed"><strong>Seed {idx}:</strong> {t_name} ({tw}-{tl})</p>'
-        
-        playoff_html += "</body></html>"
-        
-        st.markdown(playoff_html, unsafe_allow_html=True)
-        st.write("<script>window.print();</script>", unsafe_allow_html=True)
+    if st.sidebar.button("🖨️", key="print_playoff", help="Print Playoff Picture", use_container_width=True):
+        st.session_state.show_playoff_print = True
 
-# Display playoff picture normally
+# Display playoff picture
 for conf_name, data in playoff_data.items():
     st.sidebar.markdown(f"### {conf_name} Playoff Race")
     st.sidebar.markdown("**Division Winners (Seeds 1-4)**")
@@ -429,49 +381,102 @@ for conf_name, data in playoff_data.items():
         st.sidebar.write(f"Seed {idx}: {t_name} ({tw}-{tl})")
     st.sidebar.markdown("---")
 
-# --- PRINT ALL DIVISIONS STANDINGS ---
-st.sidebar.markdown("---")
-col1, col2 = st.sidebar.columns([0.75, 0.25])
+# --- ALL DIVISIONS SECTION ---
+col1, col2 = st.sidebar.columns([0.8, 0.2])
 with col1:
-    st.sidebar.markdown("**All Divisions**")
+    st.sidebar.markdown("**All Divisions Standings**")
 with col2:
-    if st.sidebar.button("🖨️", key="print_divisions", help="Print All Division Standings"):
-        # Create printable HTML for all divisions
-        divisions_html = "<html><head><style>"
-        divisions_html += "body { font-family: Arial, sans-serif; margin: 10px; font-size: 12px; }"
-        divisions_html += "h2 { font-size: 16px; margin: 15px 0 5px 0; page-break-inside: avoid; }"
-        divisions_html += "table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }"
-        divisions_html += "th, td { border: 1px solid #999; padding: 6px; text-align: left; }"
-        divisions_html += "th { background-color: #f2f2f2; font-weight: bold; }"
-        divisions_html += ".conf-section { page-break-inside: avoid; }"
-        divisions_html += "</style></head><body>"
-        divisions_html += "<h1>2026 NFL Division Standings</h1>"
+    if st.sidebar.button("🖨️", key="print_divisions", help="Print All Divisions", use_container_width=True):
+        st.session_state.show_divisions_print = True
+
+# --- PRINT MODAL SECTIONS (hidden by default, shown when print clicked) ---
+if st.session_state.get("show_playoff_print", False):
+    st.markdown("---")
+    st.markdown("## 📋 Print Preview - Playoff Picture")
+    st.markdown("*(Click below to print or save as PDF)*")
+    
+    playoff_print_html = """
+    <style>
+    .print-container { font-family: Arial, sans-serif; padding: 20px; }
+    .print-header { text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 20px; }
+    .conf-title { font-size: 18px; font-weight: bold; margin-top: 20px; margin-bottom: 10px; }
+    .div-section { margin-bottom: 15px; }
+    .seed-line { margin-left: 20px; font-size: 14px; margin-bottom: 5px; }
+    </style>
+    <div class="print-container">
+        <div class="print-header">2026 NFL Playoff Picture</div>
+    """
+    
+    for conf_name, data in playoff_data.items():
+        playoff_print_html += f'<div class="conf-title">{conf_name}</div>'
+        playoff_print_html += '<div style="margin-left: 15px;">'
+        playoff_print_html += '<strong>Division Winners (Seeds 1-4)</strong>'
+        for idx, (t_name, tw, tl) in enumerate(data["div_winners"], start=1):
+            playoff_print_html += f'<div class="seed-line">Seed {idx}: {t_name} ({tw}-{tl})</div>'
+        playoff_print_html += '<strong style="display: block; margin-top: 10px;">Wild Card Teams (Seeds 5-7)</strong>'
+        for idx, (t_name, tw, tl) in enumerate(data["wild_card"], start=5):
+            playoff_print_html += f'<div class="seed-line">Seed {idx}: {t_name} ({tw}-{tl})</div>'
+        playoff_print_html += '</div>'
+    
+    playoff_print_html += '</div>'
+    st.markdown(playoff_print_html, unsafe_allow_html=True)
+    st.markdown("""
+    <script>
+    window.print();
+    </script>
+    """, unsafe_allow_html=True)
+    st.session_state.show_playoff_print = False
+
+if st.session_state.get("show_divisions_print", False):
+    st.markdown("---")
+    st.markdown("## 📋 Print Preview - All Division Standings")
+    st.markdown("*(Click below to print or save as PDF)*")
+    
+    divisions_print_html = """
+    <style>
+    .print-container { font-family: Arial, sans-serif; padding: 15px; font-size: 12px; }
+    .print-header { text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 20px; }
+    .conf-section { margin-bottom: 25px; }
+    .conf-title { font-size: 16px; font-weight: bold; margin-bottom: 15px; }
+    .div-title { font-size: 13px; font-weight: bold; margin-top: 10px; margin-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+    th, td { border: 1px solid #999; padding: 6px; text-align: left; font-size: 11px; }
+    th { background-color: #e8e8e8; font-weight: bold; }
+    tr:nth-child(even) { background-color: #f9f9f9; }
+    </style>
+    <div class="print-container">
+        <div class="print-header">2026 NFL Division Standings</div>
+    """
+    
+    for conf_name, divs in NFL_STRUCTURE.items():
+        divisions_print_html += f'<div class="conf-section"><div class="conf-title">{conf_name}</div>'
         
-        for conf_name, divs in NFL_STRUCTURE.items():
-            divisions_html += f'<div class="conf-section"><h1 style="margin-top: 20px;">{conf_name}</h1>'
+        for div_name, teams in divs.items():
+            divisions_print_html += f'<div class="div-title">{div_name}</div>'
+            divisions_print_html += "<table><tr><th>Rank</th><th>Team</th><th>W-L</th><th>SOS</th><th>Opp. Win %</th></tr>"
             
-            for div_name, teams in divs.items():
-                divisions_html += f"<h2>{div_name}</h2>"
-                divisions_html += "<table><tr><th>Rank</th><th>Team</th><th>W-L</th><th>SOS</th><th>Opp. Win %</th></tr>"
-                
-                team_records = []
-                for t in teams:
-                    tw, tl = calculate_team_record(t)
-                    sos_data = NFL_SOS.get(t, {})
-                    sos_rank = sos_data.get("rank", "-")
-                    opp_win_pct = sos_data.get("opp_win_pct", 0)
-                    team_records.append((t, tw, tl, sos_rank, opp_win_pct))
-                
-                team_records.sort(key=lambda x: (x[1], -x[2]), reverse=True)
-                
-                for idx, (team, tw, tl, sos_rank, opp_pct) in enumerate(team_records, start=1):
-                    divisions_html += f"<tr><td>{idx}</td><td>{team}</td><td>{tw}-{tl}</td><td>{sos_rank}</td><td>.{int(opp_pct * 1000)}</td></tr>"
-                
-                divisions_html += "</table>"
+            team_records = []
+            for t in teams:
+                tw, tl = calculate_team_record(t)
+                sos_data = NFL_SOS.get(t, {})
+                sos_rank = sos_data.get("rank", "-")
+                opp_win_pct = sos_data.get("opp_win_pct", 0)
+                team_records.append((t, tw, tl, sos_rank, opp_win_pct))
             
-            divisions_html += "</div>"
+            team_records.sort(key=lambda x: (x[1], -x[2]), reverse=True)
+            
+            for idx, (team, tw, tl, sos_rank, opp_pct) in enumerate(team_records, start=1):
+                divisions_print_html += f"<tr><td>{idx}</td><td>{team}</td><td>{tw}-{tl}</td><td>{sos_rank}</td><td>.{int(opp_pct * 1000)}</td></tr>"
+            
+            divisions_print_html += "</table>"
         
-        divisions_html += "</body></html>"
-        
-        st.markdown(divisions_html, unsafe_allow_html=True)
-        st.write("<script>window.print();</script>", unsafe_allow_html=True)
+        divisions_print_html += '</div>'
+    
+    divisions_print_html += '</div>'
+    st.markdown(divisions_print_html, unsafe_allow_html=True)
+    st.markdown("""
+    <script>
+    window.print();
+    </script>
+    """, unsafe_allow_html=True)
+    st.session_state.show_divisions_print = False
