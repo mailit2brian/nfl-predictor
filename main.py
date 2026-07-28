@@ -368,7 +368,7 @@ with col1:
     pass
 with col2:
     if st.sidebar.button("🖨️", key="print_playoff", help="Print", use_container_width=True):
-        # Build playoff HTML
+        # Build playoff HTML with onafterprint cleanup
         playoff_html = """
         <!DOCTYPE html>
         <html>
@@ -400,10 +400,13 @@ with col2:
         playoff_html += """
         </body>
         </html>
-        <script>window.print();</script>
+        <script>
+        window.onafterprint = function() { window.close(); };
+        window.print();
+        </script>
         """
         
-        st.components.v1.html(playoff_html, height=600)
+        st.components.v1.html(playoff_html, height=0, width=1)
 
 # Display playoff picture
 for conf_name, data in playoff_data.items():
@@ -521,7 +524,10 @@ with col2:
         divisions_html += """
         </body>
         </html>
-        <script>window.print();</script>
+        <script>
+        window.onafterprint = function() { window.close(); };
+        window.print();
+        </script>
         """
         
-        st.components.v1.html(divisions_html, height=600)
+        st.components.v1.html(divisions_html, height=0, width=1)
