@@ -424,22 +424,31 @@ with col1:
     pass
 with col2:
     if st.sidebar.button("🖨️", key="print_divisions", help="Print", use_container_width=True):
-        # Build divisions HTML
+        # Build divisions HTML with optimized sizing for one page
         divisions_html = """
         <!DOCTYPE html>
         <html>
         <head>
             <title>2026 NFL Division Standings</title>
             <style>
-                body { font-family: Arial, sans-serif; margin: 15px; font-size: 12px; }
-                h1 { text-align: center; font-size: 20px; }
-                h2 { font-size: 14px; margin-top: 20px; margin-bottom: 10px; font-weight: bold; }
-                h3 { font-size: 12px; margin-top: 12px; margin-bottom: 8px; font-weight: bold; }
-                table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-                th, td { border: 1px solid #999; padding: 6px; text-align: left; font-size: 11px; }
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { font-family: Arial, sans-serif; margin: 0.4in; font-size: 9px; line-height: 1.3; }
+                h1 { text-align: center; font-size: 16px; margin-bottom: 8px; font-weight: bold; }
+                h2 { font-size: 11px; margin-top: 6px; margin-bottom: 3px; font-weight: bold; color: #333; }
+                h3 { font-size: 8px; margin-top: 3px; margin-bottom: 2px; font-weight: bold; color: #555; }
+                table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+                th, td { border: 0.5px solid #999; padding: 2px 3px; text-align: left; font-size: 8px; }
                 th { background-color: #e8e8e8; font-weight: bold; }
                 tr:nth-child(even) { background-color: #f9f9f9; }
-                @media print { body { margin: 10px; } h2 { page-break-inside: avoid; } }
+                .conf-section { margin-bottom: 3px; page-break-inside: avoid; }
+                @media print { 
+                    body { margin: 0.2in; font-size: 8px; }
+                    h1 { font-size: 14px; margin-bottom: 6px; }
+                    h2 { font-size: 10px; margin-top: 4px; margin-bottom: 2px; }
+                    h3 { font-size: 7px; margin-top: 2px; margin-bottom: 1px; }
+                    table { margin-bottom: 3px; }
+                    th, td { padding: 1px 2px; font-size: 7px; }
+                }
             </style>
         </head>
         <body>
@@ -447,11 +456,11 @@ with col2:
         """
         
         for conf_name, divs in NFL_STRUCTURE.items():
-            divisions_html += f"<h2>{conf_name}</h2>"
+            divisions_html += f'<div class="conf-section"><h2>{conf_name}</h2>'
             
             for div_name, teams in divs.items():
                 divisions_html += f"<h3>{div_name}</h3>"
-                divisions_html += "<table><tr><th>Rank</th><th>Team</th><th>W-L</th><th>SOS</th><th>Opp. Win %</th></tr>"
+                divisions_html += "<table><tr><th>R</th><th>Team</th><th>W-L</th><th>SOS</th><th>%</th></tr>"
                 
                 team_records = []
                 for t in teams:
@@ -467,6 +476,8 @@ with col2:
                     divisions_html += f"<tr><td>{idx}</td><td>{team}</td><td>{tw}-{tl}</td><td>{sos_rank}</td><td>.{int(opp_pct * 1000)}</td></tr>"
                 
                 divisions_html += "</table>"
+            
+            divisions_html += '</div>'
         
         divisions_html += """
         </body>
