@@ -2,7 +2,9 @@ import streamlit as st
 import json
 import os
 import base64
+import hashlib
 from nfl_data import NFL_SCHEDULE, NFL_SOS
+from datetime import datetime
 
 # Define conferences and divisions structure
 NFL_STRUCTURE = {
@@ -154,6 +156,79 @@ def save_user_pick_local(username, picks_dict):
     except Exception as e:
         st.error(f"Error saving pick locally: {e}")
 
+def load_game_results_local():
+    """Load game results from local JSON file."""
+    local_file = "game_results.json"
+    if os.path.exists(local_file):
+        try:
+            with open(local_file, "r") as f:
+                data = json.load(f)
+                return data if isinstance(data, dict) else {}
+        except:
+            return {}
+    return {}
+
+def load_game_results_github():
+    """Load game results from GitHub."""
+    try:
+        token = st.secrets.get("GITHUB_TOKEN")
+        if not token:
+            return {}
+        
+        import requests
+        headers = {"Authorization": f"token {token}"}
+        url = "https://api.github.com/repos/mailit2brian/nfl-predictor/contents/game_results.json"
+        
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            content = response.json()
+            file_content = base64.b64decode(content["content"]).decode()
+            data = json.loads(file_content)
+            return data if isinstance(data, dict) else {}
+        return {}
+    except:
+        return {}
+
+def save_game_results_local(results_dict):
+    """Save game results to local JSON file."""
+    try:
+        with open("game_results.json", "w") as f:
+            f.write(json.dumps(results_dict, indent=2))
+    except Exception as e:
+        st.error(f"Error saving game results locally: {e}")
+
+def save_game_results_github(results_dict):
+    """Save game results to GitHub."""
+    try:
+        token = st.secrets.get("GITHUB_TOKEN")
+        if not token:
+            return False
+        
+        import requests
+        headers = {"Authorization": f"token {token}"}
+        url = "https://api.github.com/repos/mailit2brian/nfl-predictor/contents/game_results.json"
+        
+        file_content = json.dumps(results_dict, indent=2)
+        file_content_b64 = base64.b64encode(file_content.encode()).decode()
+        
+        response = requests.get(url, headers=headers)
+        sha = None
+        if response.status_code == 200:
+            sha = response.json()["sha"]
+        
+        data = {
+            "message": f"Update game results {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            "content": file_content_b64,
+        }
+        if sha:
+            data["sha"] = sha
+        
+        response = requests.put(url, headers=headers, json=data)
+        return response.status_code in [200, 201]
+    except Exception as e:
+        st.warning(f"Could not sync game results to GitHub: {e}")
+        return False
+
 def get_pick_for_game(game_id, home_team, away_team, team_perspective):
     """Retrieve pick for a game from a team's perspective."""
     picks_dict = st.session_state.get("user_predictions", {})
@@ -222,6 +297,68 @@ def calculate_team_record(team_name):
     
     return w, l
 
+def calculate_actual_team_record(team_name):
+    """Calculate actual W-L record from uploaded game results."""
+    schedule = NFL_SCHEDULE.get(team_name, [])
+    game_results = st.session_state.get("game_results", {})
+    wins, losses = 0, 0
+    
+    for week_num, game_info in enumerate(schedule, start=1):
+        game_str = str(game_info)
+        if "bye" in game_str.lower():
+            continue
+        
+        opponent = get_opponent_from_gamestr(game_str)
+        if not opponent:
+            continue
+        
+        if game_str.lower().startswith("at "):
+            home_team = opponent
+            away_team = team_name
+        else:
+            home_team = team_name
+            away_team = opponent
+        
+        game_id = generate_game_id(week_num, home_team, away_team)
+        actual_winner = game_results.get(game_id)
+        if not actual_winner:
+            continue
+        
+        if actual_winner == team_name:
+            wins += 1
+        else:
+            losses += 1
+    
+    return wins, losses
+
+def calculate_season_accuracy(username):
+    """Calculate user's season accuracy as (correct, incorrect)."""
+    user_picks = st.session_state.get("user_predictions", {})
+    game_results = st.session_state.get("game_results", {})
+    
+    correct = 0
+    incorrect = 0
+    
+    for game_id, predicted_winner in user_picks.items():
+        actual_winner = game_results.get(game_id)
+        if not actual_winner:
+            continue
+        if predicted_winner == actual_winner:
+            correct += 1
+        else:
+            incorrect += 1
+    
+    return correct, incorrect
+
+def get_accuracy_percentage():
+    """Calculate current user's season accuracy percentage."""
+    username = st.session_state.get("current_user", "DefaultUser")
+    correct, incorrect = calculate_season_accuracy(username)
+    total = correct + incorrect
+    if total == 0:
+        return 0.0
+    return (correct / total) * 100
+
 # --- SIDEBAR: USER PROFILE SELECTION ---
 st.sidebar.title("Core Four Picks")
 st.sidebar.subheader("User Profile")
@@ -244,6 +381,49 @@ if "user_predictions" not in st.session_state:
     github_picks = load_user_picks_github(username)
     st.session_state.user_predictions = local_picks if local_picks else github_picks
 
+if "game_results" not in st.session_state:
+    local_results = load_game_results_local()
+    github_results = load_game_results_github()
+    st.session_state.game_results = local_results if local_results else github_results
+
+correct_picks, incorrect_picks = calculate_season_accuracy(username)
+accuracy_pct = get_accuracy_percentage()
+st.sidebar.write(f"**Season Accuracy: {correct_picks}-{incorrect_picks} ({accuracy_pct:.1f}%)**")
+
+st.sidebar.subheader("Upload Weekly Results")
+results_file = st.sidebar.file_uploader(
+    "Upload JSON results file",
+    type=["json"],
+    key="results_upload"
+)
+
+if results_file is not None:
+    try:
+        file_bytes = results_file.getvalue()
+        upload_signature = hashlib.sha256(file_bytes).hexdigest()
+        if st.session_state.get("last_results_upload_signature") == upload_signature:
+            uploaded_results = None
+        else:
+            uploaded_results = json.loads(file_bytes.decode("utf-8"))
+
+        if uploaded_results is None:
+            pass
+        elif not isinstance(uploaded_results, dict):
+            st.sidebar.error("Invalid format: JSON must be an object of game_id -> winner.")
+        else:
+            sanitized_updates = {}
+            for game_id, winner in uploaded_results.items():
+                if isinstance(game_id, str) and isinstance(winner, str):
+                    sanitized_updates[game_id] = winner
+            
+            st.session_state.game_results.update(sanitized_updates)
+            save_game_results_local(st.session_state.game_results)
+            save_game_results_github(st.session_state.game_results)
+            st.session_state.last_results_upload_signature = upload_signature
+            st.sidebar.success(f"Uploaded {len(sanitized_updates)} game results.")
+    except Exception as e:
+        st.sidebar.error(f"Could not upload results file: {e}")
+
 # --- MAIN UI ---
 st.sidebar.markdown("---")
 selected_conference = st.sidebar.selectbox("Select Conference:", list(NFL_STRUCTURE.keys()))
@@ -258,26 +438,39 @@ vegas_ou = VEGAS_ODDS.get(selected_team, "N/A")
 st.sidebar.write(f"**Projected Record:** {w}-{l}")
 st.sidebar.write(f"**Vegas O/U:** {vegas_ou}")
 
-# --- DIVISION STANDINGS WITH SOS (COMPACT BOX) ---
+# --- DIVISION STANDINGS ---
 st.sidebar.markdown("---")
 st.sidebar.subheader("Division Standings")
 division_teams = NFL_STRUCTURE[selected_conference][selected_division]
 standings = []
 for team in division_teams:
-    tw, tl = calculate_team_record(team)
+    projected_w, projected_l = calculate_team_record(team)
+    actual_w, actual_l = calculate_actual_team_record(team)
     sos_data = NFL_SOS.get(team, {})
     sos_rank = sos_data.get("rank", "-")
     opp_win_pct = sos_data.get("opp_win_pct", 0)
-    standings.append((team, tw, tl, sos_rank, opp_win_pct))
+    standings.append((team, actual_w, actual_l, projected_w, projected_l, sos_rank, opp_win_pct))
 
-standings.sort(key=lambda x: (x[1], -x[2]), reverse=True)
+has_uploaded_results = len(st.session_state.get("game_results", {})) > 0
 
-# Display header
-st.sidebar.caption("Rank | Team | W-L | SOS | Opp. Win %")
-st.sidebar.caption("-----|------|-----|-----|----------")
+if has_uploaded_results:
+    standings.sort(key=lambda x: (x[1], -x[2]), reverse=True)
+    st.sidebar.caption("Rank | Team | Actual | Projected | Diff")
+    st.sidebar.caption("-----|------|--------|-----------|-----")
 
-for idx, (team, tw, tl, sos_rank, opp_pct) in enumerate(standings, start=1):
-    st.sidebar.caption(f"{idx}. {team} ({tw}-{tl}) | {sos_rank} | .{int(opp_pct * 1000)}")
+    for idx, (team, actual_w, actual_l, projected_w, projected_l, _, _) in enumerate(standings, start=1):
+        win_diff = actual_w - projected_w
+        diff_label = "—" if win_diff == 0 else f"{win_diff:+d}W"
+        st.sidebar.caption(
+            f"{idx}. {team} | {actual_w}-{actual_l} | {projected_w}-{projected_l} | {diff_label}"
+        )
+else:
+    standings.sort(key=lambda x: (x[3], -x[4]), reverse=True)
+    st.sidebar.caption("Rank | Team | W-L | SOS | Opp. Win %")
+    st.sidebar.caption("-----|------|-----|-----|----------")
+
+    for idx, (team, _, _, projected_w, projected_l, sos_rank, opp_pct) in enumerate(standings, start=1):
+        st.sidebar.caption(f"{idx}. {team} ({projected_w}-{projected_l}) | {sos_rank} | .{int(opp_pct * 1000)}")
 
 st.title(f"2026 Schedule & Predictions: {selected_team}")
 st.markdown(f"*{selected_conference} - {selected_division}* (Editing as: **{username}**)")

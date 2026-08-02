@@ -69,7 +69,9 @@ Visit `http://localhost:8501` in your browser.
 2. **Select conference → division → team**
 3. **Pick wins/losses** for each game
 4. **View your record** in the sidebar
-5. **Check playoff standings** at the bottom
+5. **Upload weekly actual results** in the sidebar using `game_results.json` format
+6. **Track season accuracy** under your username (`correct-incorrect (percentage)`)
+7. **Check playoff standings** at the bottom
 
 ### 🎯 Key Behavior
 
