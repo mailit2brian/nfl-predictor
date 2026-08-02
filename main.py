@@ -359,6 +359,41 @@ def get_accuracy_percentage():
         return 0.0
     return (correct / total) * 100
 
+def get_all_users_accuracy():
+    """Get accuracy for all tracked users: Brian, Chris, Jason, Mike."""
+    tracked_users = ["Brian", "Chris", "Jason", "Mike"]
+    game_results = st.session_state.get("game_results", {})
+    user_accuracy = []
+
+    for user in tracked_users:
+        local_picks = load_user_picks_local(user)
+        github_picks = load_user_picks_github(user)
+        user_picks = local_picks if local_picks else github_picks
+
+        correct = 0
+        incorrect = 0
+
+        for game_id, actual_winner in game_results.items():
+            if game_id in user_picks:
+                predicted_winner = user_picks[game_id]
+                if predicted_winner == actual_winner:
+                    correct += 1
+                else:
+                    incorrect += 1
+
+        total = correct + incorrect
+        accuracy_pct = (correct / total * 100) if total > 0 else 0.0
+        user_accuracy.append({
+            "user": user,
+            "correct": correct,
+            "incorrect": incorrect,
+            "record": f"{correct}-{incorrect}",
+            "accuracy": accuracy_pct,
+        })
+
+    user_accuracy.sort(key=lambda x: x["accuracy"], reverse=True)
+    return user_accuracy
+
 # --- SIDEBAR: USER PROFILE SELECTION ---
 st.sidebar.title("Core Four Picks")
 st.sidebar.subheader("User Profile")
@@ -472,60 +507,83 @@ else:
     for idx, (team, _, _, projected_w, projected_l, sos_rank, opp_pct) in enumerate(standings, start=1):
         st.sidebar.caption(f"{idx}. {team} ({projected_w}-{projected_l}) | {sos_rank} | .{int(opp_pct * 1000)}")
 
-st.title(f"2026 Schedule & Predictions: {selected_team}")
-st.markdown(f"*{selected_conference} - {selected_division}* (Editing as: **{username}**)")
-st.write("Select whether your team will Win or Lose each matchup below:")
-st.markdown("---")
-
-schedule_list = NFL_SCHEDULE.get(selected_team, [])
-wins = 0
-losses = 0
-
-for week_num, game_info in enumerate(schedule_list, start=1):
-    game_str = str(game_info)
-    
-    if "bye" in game_str.lower():
-        st.write(f"**Week {week_num}**: Bye Week")
-        st.markdown("---")
-        continue
-        
-    opponent = get_opponent_from_gamestr(game_str)
-    if not opponent:
-        continue
-
-    if game_str.lower().startswith("at "):
-        location = "Away"
-        matchup_label = f"at {opponent}"
-        home_team = opponent
-        away_team = selected_team
-    else:
-        location = "Home"
-        matchup_label = f"vs {opponent}"
-        home_team = selected_team
-        away_team = opponent
-
-    game_id = generate_game_id(week_num, home_team, away_team)
-    current_val = get_pick_for_game(game_id, home_team, away_team, selected_team)
-    widget_key = f"radio_{game_id}_{selected_team}"
-
-    if widget_key not in st.session_state:
-        st.session_state[widget_key] = current_val
-
-    result = st.radio(
-        f"**Week {week_num}** {matchup_label} *({location})*",
-        ["No Pick", "Win", "Loss"],
-        key=widget_key,
-        horizontal=True,
-        on_change=set_pick_for_game,
-        args=(game_id, home_team, away_team, selected_team, widget_key)
-    )
-
-    if result == "Win":
-        wins += 1
-    elif result == "Loss":
-        losses += 1
-
+if st.session_state.get("show_leaderboard", False):
+    import pandas as pd
+    st.title("Season Accuracy Leaderboard")
     st.markdown("---")
+
+    game_results = st.session_state.get("game_results", {})
+    if not game_results:
+        st.info("No results uploaded yet. Upload game results to see the leaderboard.")
+    else:
+        leaderboard_data = get_all_users_accuracy()
+        rows = []
+        for idx, entry in enumerate(leaderboard_data, start=1):
+            rows.append({
+                "Rank": idx,
+                "User": entry["user"],
+                "Record": entry["record"],
+                "Accuracy %": f"{entry['accuracy']:.1f}%",
+            })
+        df = pd.DataFrame(rows)
+        st.dataframe(df, use_container_width=True, hide_index=True)
+        st.markdown("---")
+        st.write("*Updates automatically when weekly results are uploaded*")
+else:
+    st.title(f"2026 Schedule & Predictions: {selected_team}")
+    st.markdown(f"*{selected_conference} - {selected_division}* (Editing as: **{username}**)")
+    st.write("Select whether your team will Win or Lose each matchup below:")
+    st.markdown("---")
+
+    schedule_list = NFL_SCHEDULE.get(selected_team, [])
+    wins = 0
+    losses = 0
+
+    for week_num, game_info in enumerate(schedule_list, start=1):
+        game_str = str(game_info)
+
+        if "bye" in game_str.lower():
+            st.write(f"**Week {week_num}**: Bye Week")
+            st.markdown("---")
+            continue
+
+        opponent = get_opponent_from_gamestr(game_str)
+        if not opponent:
+            continue
+
+        if game_str.lower().startswith("at "):
+            location = "Away"
+            matchup_label = f"at {opponent}"
+            home_team = opponent
+            away_team = selected_team
+        else:
+            location = "Home"
+            matchup_label = f"vs {opponent}"
+            home_team = selected_team
+            away_team = opponent
+
+        game_id = generate_game_id(week_num, home_team, away_team)
+        current_val = get_pick_for_game(game_id, home_team, away_team, selected_team)
+        widget_key = f"radio_{game_id}_{selected_team}"
+
+        if widget_key not in st.session_state:
+            st.session_state[widget_key] = current_val
+
+        result = st.radio(
+            f"**Week {week_num}** {matchup_label} *({location})*",
+            ["No Pick", "Win", "Loss"],
+            key=widget_key,
+            horizontal=True,
+            on_change=set_pick_for_game,
+            args=(game_id, home_team, away_team, selected_team, widget_key)
+        )
+
+        if result == "Win":
+            wins += 1
+        elif result == "Loss":
+            losses += 1
+
+        st.markdown("---")
 
 st.sidebar.markdown("---")
 
@@ -728,3 +786,17 @@ with col2:
         """
         
         st.components.v1.html(divisions_html, height=0, width=1)
+
+# --- SEASON LEADERBOARD SIDEBAR ---
+st.sidebar.markdown("---")
+st.sidebar.subheader("Season Leaderboard")
+col1, col2 = st.sidebar.columns([1, 0.3])
+with col1:
+    pass
+with col2:
+    if st.sidebar.button("📊", key="show_leaderboard_btn", help="View Leaderboard", use_container_width=True):
+        st.session_state.show_leaderboard = True
+
+if st.session_state.get("show_leaderboard", False):
+    if st.sidebar.button("← Back to Teams", key="hide_leaderboard_btn", use_container_width=True):
+        st.session_state.show_leaderboard = False
