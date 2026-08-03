@@ -202,6 +202,7 @@ def save_game_results_github(results_dict):
     try:
         token = st.secrets.get("GITHUB_TOKEN")
         if not token:
+            st.error("No GitHub token found in secrets")
             return False
         
         import requests
@@ -211,10 +212,14 @@ def save_game_results_github(results_dict):
         file_content = json.dumps(results_dict, indent=2)
         file_content_b64 = base64.b64encode(file_content.encode()).decode()
         
+        # Get fresh SHA every time before saving
         response = requests.get(url, headers=headers)
         sha = None
         if response.status_code == 200:
             sha = response.json()["sha"]
+        elif response.status_code != 404:
+            st.error(f"Failed to get file SHA: {response.status_code}")
+            return False
         
         data = {
             "message": f"Update game results {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
@@ -224,9 +229,13 @@ def save_game_results_github(results_dict):
             data["sha"] = sha
         
         response = requests.put(url, headers=headers, json=data)
-        return response.status_code in [200, 201]
+        if response.status_code in [200, 201]:
+            return True
+        else:
+            st.error(f"Failed to save to GitHub: {response.status_code} - {response.text}")
+            return False
     except Exception as e:
-        st.warning(f"Could not sync game results to GitHub: {e}")
+        st.error(f"Error saving game results to GitHub: {str(e)}")
         return False
 
 def get_pick_for_game(game_id, home_team, away_team, team_perspective):
@@ -525,8 +534,12 @@ if page == "Admin - Enter Results":
         if st.button("💾 Save Week Results", key="save_results_btn", use_container_width=True):
             # Get all results including current ones
             save_game_results_local(st.session_state.game_results)
-            save_game_results_github(st.session_state.game_results)
-            st.success(f"✅ Saved Week {week_num} results to GitHub!")
+            if save_game_results_github(st.session_state.game_results):
+                st.success(f"✅ Saved Week {week_num} results to GitHub!")
+                # Reload fresh results from GitHub to confirm save
+                st.session_state.game_results = load_game_results_github()
+            else:
+                st.error("Failed to save to GitHub. Check error message above.")
             # Clear selections for next week
             st.session_state.admin_selections = {}
 
@@ -822,7 +835,7 @@ else:
                 team_records.sort(key=lambda x: (-x[1], x[2]))
                 
                 for idx, (team, tw, tl, sos_rank, opp_pct) in enumerate(team_records, start=1):
-                    divisions_html += f"<tr><td class='col-r'>{idx}</td><td class='col-team'>{team}</td><td class='col-wl'>{tw}-{tl}</td><td class='col-sos'>{sos_rank}</td><td class='col-pct'>.{int(opp_pct * 1000)}</td></tr>"
+                    divisions_html += f"<tr><td class='col-r'>{idx}</td><td class='col-team'>{team}</td><td class='col-wl'>{tw}-{tl}</td><td class='col-sos'>{sos_rank}</td><td class='col-pct'>.{int(opp_pct * 1000) / 1000}</td></tr>"
                 
                 divisions_html += "</table>"
                 divisions_html += '</div>'
@@ -849,7 +862,7 @@ else:
                 team_records.sort(key=lambda x: (-x[1], x[2]))
                 
                 for idx, (team, tw, tl, sos_rank, opp_pct) in enumerate(team_records, start=1):
-                    divisions_html += f"<tr><td class='col-r'>{idx}</td><td class='col-team'>{team}</td><td class='col-wl'>{tw}-{tl}</td><td class='col-sos'>{sos_rank}</td><td class='col-pct'>.{int(opp_pct * 1000)}</td></tr>"
+                    divisions_html += f"<tr><td class='col-r'>{idx}</td><td class='col-team'>{team}</td><td class='col-wl'>{tw}-{tl}</td><td class='col-sos'>{sos_rank}</td><td class='col-pct'>.{int(opp_pct * 1000) / 1000}</td></tr>"
                 
                 divisions_html += "</table>"
                 divisions_html += '</div>'
