@@ -597,7 +597,8 @@ else:
                 f"{idx}. {team} | {actual_w}-{actual_l} | {projected_w}-{projected_l} | {diff_label}"
             )
     else:
-        standings.sort(key=lambda x: (x[3], -x[4]), reverse=True)
+        # Sort by PROJECTED wins (descending), then by losses (ascending)
+        standings.sort(key=lambda x: (-x[3], x[4]))
         st.sidebar.caption("Rank | Team | W-L | SOS | Opp. Win %")
         st.sidebar.caption("-----|------|-----|-----|----------")
     
@@ -673,13 +674,13 @@ else:
             for t in teams:
                 tw, tl = calculate_team_record(t)
                 team_records.append((t, tw, tl))
-            team_records.sort(key=lambda x: (x[1], -x[2]), reverse=True)
+            team_records.sort(key=lambda x: (-x[1], x[2]))
             div_winners.append(team_records[0])
             for tr in team_records[1:]:
                 wild_card_pool.append(tr)
                 
-        div_winners.sort(key=lambda x: (x[1], -x[2]), reverse=True)
-        wild_card_pool.sort(key=lambda x: (x[1], -x[2]), reverse=True)
+        div_winners.sort(key=lambda x: (-x[1], x[2]))
+        wild_card_pool.sort(key=lambda x: (-x[1], x[2]))
         wild_card_teams = wild_card_pool[:3]
         
         playoff_data[conf_name] = {
@@ -814,7 +815,7 @@ else:
                     opp_win_pct = sos_data.get("opp_win_pct", 0)
                     team_records.append((t, tw, tl, sos_rank, opp_win_pct))
                 
-                team_records.sort(key=lambda x: (x[1], -x[2]), reverse=True)
+                team_records.sort(key=lambda x: (-x[1], x[2]))
                 
                 for idx, (team, tw, tl, sos_rank, opp_pct) in enumerate(team_records, start=1):
                     divisions_html += f"<tr><td class='col-r'>{idx}</td><td class='col-team'>{team}</td><td class='col-wl'>{tw}-{tl}</td><td class='col-sos'>{sos_rank}</td><td class='col-pct'>.{int(opp_pct * 1000)}</td></tr>"
@@ -841,7 +842,7 @@ else:
                     opp_win_pct = sos_data.get("opp_win_pct", 0)
                     team_records.append((t, tw, tl, sos_rank, opp_win_pct))
                 
-                team_records.sort(key=lambda x: (x[1], -x[2]), reverse=True)
+                team_records.sort(key=lambda x: (-x[1], x[2]))
                 
                 for idx, (team, tw, tl, sos_rank, opp_pct) in enumerate(team_records, start=1):
                     divisions_html += f"<tr><td class='col-r'>{idx}</td><td class='col-team'>{team}</td><td class='col-wl'>{tw}-{tl}</td><td class='col-sos'>{sos_rank}</td><td class='col-pct'>.{int(opp_pct * 1000)}</td></tr>"
