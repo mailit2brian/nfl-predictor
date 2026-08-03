@@ -469,6 +469,23 @@ if page == "Admin - Enter Results":
         st.write(f"**Week {week_num}** - {len(week_games)} games")
         st.markdown("---")
         
+        # Clear week button
+        col1, col2 = st.columns([4, 1])
+        with col2:
+            if st.button("🗑️ Clear Week", key="clear_week_btn", use_container_width=True, help="Delete all results for this week"):
+                # Remove all games from this week
+                for game_id in week_games.keys():
+                    if game_id in st.session_state.game_results:
+                        del st.session_state.game_results[game_id]
+                
+                # Save to GitHub
+                save_game_results_local(st.session_state.game_results)
+                save_game_results_github(st.session_state.game_results)
+                st.success(f"✅ Cleared all results for Week {week_num}")
+                st.rerun()
+        
+        st.markdown("---")
+        
         # Initialize session state for admin selections
         if "admin_selections" not in st.session_state:
             st.session_state.admin_selections = {}
