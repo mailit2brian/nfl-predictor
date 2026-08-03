@@ -532,16 +532,20 @@ if page == "Admin - Enter Results":
         
         # Save button
         if st.button("💾 Save Week Results", key="save_results_btn", use_container_width=True):
-            # Get all results including current ones
+            st.write("DEBUG: Saving data...")
+            st.write(f"DEBUG: Data to save: {st.session_state.game_results}")
+            
             save_game_results_local(st.session_state.game_results)
-            if save_game_results_github(st.session_state.game_results):
+            st.write("DEBUG: Saved to local file")
+            
+            success = save_game_results_github(st.session_state.game_results)
+            st.write(f"DEBUG: GitHub save result: {success}")
+            
+            if success:
                 st.success(f"✅ Saved Week {week_num} results to GitHub!")
-                # Reload fresh results from GitHub to confirm save
-                st.session_state.game_results = load_game_results_github()
+                st.session_state.admin_selections = {}
             else:
-                st.error("Failed to save to GitHub. Check error message above.")
-            # Clear selections for next week
-            st.session_state.admin_selections = {}
+                st.error("❌ Failed to save to GitHub")
 
 # --- PAGE: LEADERBOARD ---
 elif page == "Leaderboard":
