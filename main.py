@@ -394,7 +394,11 @@ def get_all_users_accuracy():
     user_accuracy.sort(key=lambda x: x["accuracy"], reverse=True)
     return user_accuracy
 
+# --- PAGE NAVIGATION ---
+page = st.sidebar.radio("Navigate:", ["Teams & Picks", "Admin - Enter Results", "Leaderboard"], key="page_selector")
+
 # --- SIDEBAR: USER PROFILE SELECTION ---
+st.sidebar.markdown("---")
 st.sidebar.title("Core Four Picks")
 st.sidebar.subheader("User Profile")
 username = st.sidebar.text_input("Enter Your Name:", value="My Picks").strip()
@@ -425,112 +429,91 @@ correct_picks, incorrect_picks = calculate_season_accuracy(username)
 accuracy_pct = get_accuracy_percentage()
 st.sidebar.write(f"**Season Accuracy: {correct_picks}-{incorrect_picks} ({accuracy_pct:.1f}%)**")
 
-# --- SEASON LEADERBOARD BUTTON ---
-st.sidebar.markdown("")
-st.sidebar.subheader("Season Leaderboard")
-col1, col2 = st.sidebar.columns([1, 0.3])
-with col1:
-    pass
-with col2:
-    if st.sidebar.button("📊", key="show_leaderboard_btn", help="View Leaderboard", use_container_width=True):
-        st.session_state.show_leaderboard = True
-
-if st.session_state.get("show_leaderboard", False):
-    if st.sidebar.button("← Back to Teams", key="hide_leaderboard_btn", use_container_width=True):
-        st.session_state.show_leaderboard = False
-
-st.sidebar.markdown("")
-st.sidebar.subheader("Upload Weekly Results")
-results_file = st.sidebar.file_uploader(
-    "Upload JSON results file",
-    type=["json"],
-    key="results_upload"
-)
-
-if results_file is not None:
-    try:
-        file_bytes = results_file.getvalue()
-        upload_signature = hashlib.sha256(file_bytes).hexdigest()
-        if st.session_state.get("last_results_upload_signature") == upload_signature:
-            uploaded_results = None
-        else:
-            uploaded_results = json.loads(file_bytes.decode("utf-8"))
-
-        if uploaded_results is None:
-            pass
-        elif not isinstance(uploaded_results, dict):
-            st.sidebar.error("Invalid format: JSON must be an object of game_id -> winner.")
-        else:
-            sanitized_updates = {}
-            for game_id, winner in uploaded_results.items():
-                if isinstance(game_id, str) and isinstance(winner, str):
-                    sanitized_updates[game_id] = winner
+# --- PAGE: ADMIN - ENTER RESULTS ---
+if page == "Admin - Enter Results":
+    st.title("📋 Admin: Enter Weekly Results")
+    st.markdown("---")
+    
+    week_num = st.selectbox("Select Week:", list(range(1, 19)), key="week_selector")
+    
+    # Collect all games for this week from all teams
+    week_games = {}
+    for team_name, schedule in NFL_SCHEDULE.items():
+        if week_num <= len(schedule):
+            game_info = schedule[week_num - 1]
+            game_str = str(game_info)
             
-            st.session_state.game_results.update(sanitized_updates)
-            save_game_results_local(st.session_state.game_results)
-            save_game_results_github(st.session_state.game_results)
-            st.session_state.last_results_upload_signature = upload_signature
-            st.sidebar.success(f"Uploaded {len(sanitized_updates)} game results.")
-    except Exception as e:
-        st.sidebar.error(f"Could not upload results file: {e}")
+            if "bye" in game_str.lower():
+                continue
+            
+            opponent = get_opponent_from_gamestr(game_str)
+            if not opponent:
+                continue
+            
+            if game_str.lower().startswith("at "):
+                home_team = opponent
+                away_team = team_name
+            else:
+                home_team = team_name
+                away_team = opponent
+            
+            game_id = generate_game_id(week_num, home_team, away_team)
+            
+            # Only add each game once (not once per team)
+            if game_id not in week_games:
+                week_games[game_id] = (home_team, away_team)
+    
+    if not week_games:
+        st.info(f"No games found for Week {week_num}")
+    else:
+        st.write(f"**Week {week_num}** - {len(week_games)} games")
+        st.markdown("---")
+        
+        # Create container for results
+        week_results = {}
+        current_game_results = st.session_state.get("game_results", {})
+        
+        for game_id, (home_team, away_team) in sorted(week_games.items()):
+            col1, col2, col3 = st.columns([2, 1, 1])
+            
+            with col1:
+                st.write(f"**{away_team}** @ **{home_team}**")
+            
+            with col2:
+                if st.button(f"⬅️ {away_team}", key=f"away_{game_id}", use_container_width=True):
+                    week_results[game_id] = away_team
+            
+            with col3:
+                if st.button(f"{home_team} ➡️", key=f"home_{game_id}", use_container_width=True):
+                    week_results[game_id] = home_team
+            
+            # Display current selection
+            current_winner = current_game_results.get(game_id, "—")
+            st.caption(f"Current: {current_winner}")
+            st.markdown("---")
+        
+        # Save button
+        if st.button("💾 Save Week Results", key="save_results_btn", use_container_width=True):
+            # Update game results with new entries
+            updated_results = st.session_state.get("game_results", {})
+            updated_results.update(week_results)
+            
+            # Save locally and to GitHub
+            save_game_results_local(updated_results)
+            save_game_results_github(updated_results)
+            st.session_state.game_results = updated_results
+            
+            st.success(f"✅ Saved {len(week_results)} game results for Week {week_num}!")
 
-# --- MAIN UI ---
-st.sidebar.markdown("---")
-selected_conference = st.sidebar.selectbox("Select Conference:", list(NFL_STRUCTURE.keys()))
-selected_division = st.sidebar.selectbox("Select Division:", list(NFL_STRUCTURE[selected_conference].keys()))
-selected_team = st.sidebar.selectbox("Select Team:", NFL_STRUCTURE[selected_conference][selected_division])
-
-# --- PROJECTED RECORD AND VEGAS O/U ---
-st.sidebar.markdown("")
-w, l = calculate_team_record(selected_team)
-vegas_ou = VEGAS_ODDS.get(selected_team, "N/A")
-
-st.sidebar.write(f"**Projected Record:** {w}-{l}")
-st.sidebar.write(f"**Vegas O/U:** {vegas_ou}")
-
-# --- DIVISION STANDINGS ---
-st.sidebar.markdown("---")
-st.sidebar.subheader("Division Standings")
-division_teams = NFL_STRUCTURE[selected_conference][selected_division]
-standings = []
-for team in division_teams:
-    projected_w, projected_l = calculate_team_record(team)
-    actual_w, actual_l = calculate_actual_team_record(team)
-    sos_data = NFL_SOS.get(team, {})
-    sos_rank = sos_data.get("rank", "-")
-    opp_win_pct = sos_data.get("opp_win_pct", 0)
-    standings.append((team, actual_w, actual_l, projected_w, projected_l, sos_rank, opp_win_pct))
-
-has_uploaded_results = len(st.session_state.get("game_results", {})) > 0
-
-if has_uploaded_results:
-    standings.sort(key=lambda x: (x[1], -x[2]), reverse=True)
-    st.sidebar.caption("Rank | Team | Actual | Projected | Diff")
-    st.sidebar.caption("-----|------|--------|-----------|-----")
-
-    for idx, (team, actual_w, actual_l, projected_w, projected_l, _, _) in enumerate(standings, start=1):
-        win_diff = actual_w - projected_w
-        diff_label = "—" if win_diff == 0 else f"{win_diff:+d}W"
-        st.sidebar.caption(
-            f"{idx}. {team} | {actual_w}-{actual_l} | {projected_w}-{projected_l} | {diff_label}"
-        )
-else:
-    standings.sort(key=lambda x: (x[3], -x[4]), reverse=True)
-    st.sidebar.caption("Rank | Team | W-L | SOS | Opp. Win %")
-    st.sidebar.caption("-----|------|-----|-----|----------")
-
-    for idx, (team, _, _, projected_w, projected_l, sos_rank, opp_pct) in enumerate(standings, start=1):
-        st.sidebar.caption(f"{idx}. {team} ({projected_w}-{projected_l}) | {sos_rank} | .{int(opp_pct * 1000)}")
-
-# --- MAIN CONTENT: LEADERBOARD OR SCHEDULE ---
-if st.session_state.get("show_leaderboard", False):
+# --- PAGE: LEADERBOARD ---
+elif page == "Leaderboard":
     import pandas as pd
     st.title("Season Accuracy Leaderboard")
     st.markdown("---")
 
     game_results = st.session_state.get("game_results", {})
     if not game_results:
-        st.info("No results uploaded yet. Upload game results to see the leaderboard.")
+        st.info("No results uploaded yet. Go to Admin tab to enter game results.")
     else:
         leaderboard_data = get_all_users_accuracy()
         rows = []
@@ -544,17 +527,67 @@ if st.session_state.get("show_leaderboard", False):
         df = pd.DataFrame(rows)
         st.dataframe(df, use_container_width=True, hide_index=True)
         st.markdown("---")
-        st.write("*Updates automatically when weekly results are uploaded*")
+        st.write("*Updates automatically when weekly results are entered in Admin tab*")
+
+# --- PAGE: TEAMS & PICKS ---
 else:
+    st.sidebar.markdown("---")
+    selected_conference = st.sidebar.selectbox("Select Conference:", list(NFL_STRUCTURE.keys()))
+    selected_division = st.sidebar.selectbox("Select Division:", list(NFL_STRUCTURE[selected_conference].keys()))
+    selected_team = st.sidebar.selectbox("Select Team:", NFL_STRUCTURE[selected_conference][selected_division])
+    
+    # --- PROJECTED RECORD AND VEGAS O/U ---
+    st.sidebar.markdown("")
+    w, l = calculate_team_record(selected_team)
+    vegas_ou = VEGAS_ODDS.get(selected_team, "N/A")
+    
+    st.sidebar.write(f"**Projected Record:** {w}-{l}")
+    st.sidebar.write(f"**Vegas O/U:** {vegas_ou}")
+    
+    # --- DIVISION STANDINGS ---
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("Division Standings")
+    division_teams = NFL_STRUCTURE[selected_conference][selected_division]
+    standings = []
+    for team in division_teams:
+        projected_w, projected_l = calculate_team_record(team)
+        actual_w, actual_l = calculate_actual_team_record(team)
+        sos_data = NFL_SOS.get(team, {})
+        sos_rank = sos_data.get("rank", "-")
+        opp_win_pct = sos_data.get("opp_win_pct", 0)
+        standings.append((team, actual_w, actual_l, projected_w, projected_l, sos_rank, opp_win_pct))
+    
+    has_uploaded_results = len(st.session_state.get("game_results", {})) > 0
+    
+    if has_uploaded_results:
+        standings.sort(key=lambda x: (x[1], -x[2]), reverse=True)
+        st.sidebar.caption("Rank | Team | Actual | Projected | Diff")
+        st.sidebar.caption("-----|------|--------|-----------|-----")
+    
+        for idx, (team, actual_w, actual_l, projected_w, projected_l, _, _) in enumerate(standings, start=1):
+            win_diff = actual_w - projected_w
+            diff_label = "—" if win_diff == 0 else f"{win_diff:+d}W"
+            st.sidebar.caption(
+                f"{idx}. {team} | {actual_w}-{actual_l} | {projected_w}-{projected_l} | {diff_label}"
+            )
+    else:
+        standings.sort(key=lambda x: (x[3], -x[4]), reverse=True)
+        st.sidebar.caption("Rank | Team | W-L | SOS | Opp. Win %")
+        st.sidebar.caption("-----|------|-----|-----|----------")
+    
+        for idx, (team, _, _, projected_w, projected_l, sos_rank, opp_pct) in enumerate(standings, start=1):
+            st.sidebar.caption(f"{idx}. {team} ({projected_w}-{projected_l}) | {sos_rank} | .{int(opp_pct * 1000)}")
+    
+    # --- MAIN CONTENT: SCHEDULE ---
     st.title(f"2026 Schedule & Predictions: {selected_team}")
     st.markdown(f"*{selected_conference} - {selected_division}* (Editing as: **{username}**)")
     st.write("Select whether your team will Win or Lose each matchup below:")
     st.markdown("---")
-
+    
     schedule_list = NFL_SCHEDULE.get(selected_team, [])
     wins = 0
     losses = 0
-
+    
     for week_num, game_info in enumerate(schedule_list, start=1):
         game_str = str(game_info)
         
@@ -566,7 +599,7 @@ else:
         opponent = get_opponent_from_gamestr(game_str)
         if not opponent:
             continue
-
+    
         if game_str.lower().startswith("at "):
             location = "Away"
             matchup_label = f"at {opponent}"
@@ -577,14 +610,14 @@ else:
             matchup_label = f"vs {opponent}"
             home_team = selected_team
             away_team = opponent
-
+    
         game_id = generate_game_id(week_num, home_team, away_team)
         current_val = get_pick_for_game(game_id, home_team, away_team, selected_team)
         widget_key = f"radio_{game_id}_{selected_team}"
-
+    
         if widget_key not in st.session_state:
             st.session_state[widget_key] = current_val
-
+    
         result = st.radio(
             f"**Week {week_num}** {matchup_label} *({location})*",
             ["No Pick", "Win", "Loss"],
@@ -593,212 +626,212 @@ else:
             on_change=set_pick_for_game,
             args=(game_id, home_team, away_team, selected_team, widget_key)
         )
-
+    
         if result == "Win":
             wins += 1
         elif result == "Loss":
             losses += 1
-
+    
         st.markdown("---")
-
-st.sidebar.markdown("---")
-
-# Build playoff picture data
-playoff_data = {}
-for conf_name, divs in NFL_STRUCTURE.items():
-    div_winners = []
-    wild_card_pool = []
     
-    for div_name, teams in divs.items():
-        team_records = []
-        for t in teams:
-            tw, tl = calculate_team_record(t)
-            team_records.append((t, tw, tl))
-        team_records.sort(key=lambda x: (x[1], -x[2]), reverse=True)
-        div_winners.append(team_records[0])
-        for tr in team_records[1:]:
-            wild_card_pool.append(tr)
-            
-    div_winners.sort(key=lambda x: (x[1], -x[2]), reverse=True)
-    wild_card_pool.sort(key=lambda x: (x[1], -x[2]), reverse=True)
-    wild_card_teams = wild_card_pool[:3]
-    
-    playoff_data[conf_name] = {
-        "div_winners": div_winners,
-        "wild_card": wild_card_teams
-    }
-
-# --- PLAYOFF PICTURE SECTION ---
-st.sidebar.subheader("Playoff Picture")
-col1, col2 = st.sidebar.columns([1, 0.3])
-with col1:
-    pass
-with col2:
-    if st.sidebar.button("🖨️", key="print_playoff", help="Print", use_container_width=True):
-        # Build playoff HTML with username
-        playoff_html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>2026 NFL Playoff Picture</title>
-            <style>
-                body {{ font-family: Arial, sans-serif; margin: 20px; }}
-                h1 {{ text-align: center; font-size: 24px; margin-bottom: 5px; }}
-                .username {{ text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 20px; color: #333; }}
-                h2 {{ font-size: 18px; margin-top: 25px; border-bottom: 2px solid #000; padding-bottom: 10px; }}
-                h3 {{ font-size: 14px; margin-top: 15px; font-weight: bold; }}
-                .seed {{ margin-left: 20px; font-size: 13px; line-height: 1.6; }}
-                @media print {{ body {{ margin: 10px; }} }}
-            </style>
-        </head>
-        <body>
-            <h1>2026 NFL Playoff Picture</h1>
-            <div class="username">{username}</div>
-        """
-        
-        for conf_name, data in playoff_data.items():
-            playoff_html += f"<h2>{conf_name}</h2>"
-            playoff_html += "<h3>Division Winners (Seeds 1-4)</h3>"
-            for idx, (t_name, tw, tl) in enumerate(data["div_winners"], start=1):
-                playoff_html += f'<div class="seed">Seed {idx}: {t_name} ({tw}-{tl})</div>'
-            
-            playoff_html += "<h3>Wild Card Teams (Seeds 5-7)</h3>"
-            for idx, (t_name, tw, tl) in enumerate(data["wild_card"], start=5):
-                playoff_html += f'<div class="seed">Seed {idx}: {t_name} ({tw}-{tl})</div>'
-        
-        playoff_html += """
-        </body>
-        </html>
-        <script>
-        window.onafterprint = function() { window.close(); };
-        window.print();
-        </script>
-        """
-        
-        st.components.v1.html(playoff_html, height=0, width=1)
-
-# Display playoff picture
-for conf_name, data in playoff_data.items():
-    st.sidebar.markdown(f"### {conf_name} Playoff Race")
-    st.sidebar.markdown("**Division Winners (Seeds 1-4)**")
-    for idx, (t_name, tw, tl) in enumerate(data["div_winners"], start=1):
-        st.sidebar.write(f"Seed {idx}: {t_name} ({tw}-{tl})")
-        
-    st.sidebar.markdown("**Wild Card Teams (Seeds 5-7)**")
-    for idx, (t_name, tw, tl) in enumerate(data["wild_card"], start=5):
-        st.sidebar.write(f"Seed {idx}: {t_name} ({tw}-{tl})")
     st.sidebar.markdown("---")
-
-# --- ALL DIVISIONS SECTION ---
-st.sidebar.markdown("**All Divisions Standings**")
-col1, col2 = st.sidebar.columns([1, 0.3])
-with col1:
-    pass
-with col2:
-    if st.sidebar.button("🖨️", key="print_divisions", help="Print", use_container_width=True):
-        # Build divisions HTML - Landscape with side-by-side layout and FIXED column widths, with username
-        divisions_html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>2026 NFL Division Standings</title>
-            <style>
-                @page {{ size: landscape; margin: 0.3in; }}
-                * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-                body {{ font-family: Arial, sans-serif; font-size: 10px; line-height: 1.2; }}
-                h1 {{ text-align: center; font-size: 16px; margin-bottom: 5px; }}
-                .username {{ text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #333; }}
-                .container {{ display: flex; gap: 12px; }}
-                .conference {{ flex: 1; }}
-                .conf-title {{ font-size: 13px; font-weight: bold; text-align: center; margin-bottom: 8px; border-bottom: 2px solid #000; padding-bottom: 4px; }}
-                .division {{ margin-bottom: 6px; page-break-inside: avoid; }}
-                .div-title {{ font-size: 10px; font-weight: bold; margin-bottom: 2px; color: #333; }}
-                table {{ width: 100%; border-collapse: collapse; font-size: 9px; table-layout: fixed; }}
-                th, td {{ border: 0.5px solid #999; padding: 2px 3px; text-align: left; overflow: hidden; }}
-                th {{ background-color: #e8e8e8; font-weight: bold; font-size: 8px; }}
-                td {{ font-size: 8px; }}
-                tr:nth-child(even) {{ background-color: #f9f9f9; }}
-                /* Fixed column widths */
-                .col-r {{ width: 20px; }}
-                .col-team {{ width: 100px; }}
-                .col-wl {{ width: 40px; }}
-                .col-sos {{ width: 35px; }}
-                .col-pct {{ width: 30px; }}
-                @media print {{ 
-                    body {{ font-size: 10px; }}
-                    .conf-title {{ font-size: 12px; }}
-                    .div-title {{ font-size: 9px; }}
-                    table {{ font-size: 8px; }}
-                }}
-            </style>
-        </head>
-        <body>
-            <h1>2026 NFL Division Standings</h1>
-            <div class="username">{username}</div>
-            <div class="container">
-        """
+    
+    # Build playoff picture data
+    playoff_data = {}
+    for conf_name, divs in NFL_STRUCTURE.items():
+        div_winners = []
+        wild_card_pool = []
         
-        # Build AFC (left column)
-        divisions_html += '<div class="conference">'
-        divisions_html += '<div class="conf-title">AFC</div>'
-        
-        for div_name, teams in NFL_STRUCTURE["AFC"].items():
-            divisions_html += '<div class="division">'
-            divisions_html += f'<div class="div-title">{div_name}</div>'
-            divisions_html += "<table><tr><th class='col-r'>R</th><th class='col-team'>Team</th><th class='col-wl'>W-L</th><th class='col-sos'>SOS</th><th class='col-pct'>%</th></tr>"
-            
+        for div_name, teams in divs.items():
             team_records = []
             for t in teams:
                 tw, tl = calculate_team_record(t)
-                sos_data = NFL_SOS.get(t, {})
-                sos_rank = sos_data.get("rank", "-")
-                opp_win_pct = sos_data.get("opp_win_pct", 0)
-                team_records.append((t, tw, tl, sos_rank, opp_win_pct))
-            
+                team_records.append((t, tw, tl))
             team_records.sort(key=lambda x: (x[1], -x[2]), reverse=True)
+            div_winners.append(team_records[0])
+            for tr in team_records[1:]:
+                wild_card_pool.append(tr)
+                
+        div_winners.sort(key=lambda x: (x[1], -x[2]), reverse=True)
+        wild_card_pool.sort(key=lambda x: (x[1], -x[2]), reverse=True)
+        wild_card_teams = wild_card_pool[:3]
+        
+        playoff_data[conf_name] = {
+            "div_winners": div_winners,
+            "wild_card": wild_card_teams
+        }
+    
+    # --- PLAYOFF PICTURE SECTION ---
+    st.sidebar.subheader("Playoff Picture")
+    col1, col2 = st.sidebar.columns([1, 0.3])
+    with col1:
+        pass
+    with col2:
+        if st.sidebar.button("🖨️", key="print_playoff", help="Print", use_container_width=True):
+            # Build playoff HTML with username
+            playoff_html = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>2026 NFL Playoff Picture</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                    h1 {{ text-align: center; font-size: 24px; margin-bottom: 5px; }}
+                    .username {{ text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 20px; color: #333; }}
+                    h2 {{ font-size: 18px; margin-top: 25px; border-bottom: 2px solid #000; padding-bottom: 10px; }}
+                    h3 {{ font-size: 14px; margin-top: 15px; font-weight: bold; }}
+                    .seed {{ margin-left: 20px; font-size: 13px; line-height: 1.6; }}
+                    @media print {{ body {{ margin: 10px; }} }}
+                </style>
+            </head>
+            <body>
+                <h1>2026 NFL Playoff Picture</h1>
+                <div class="username">{username}</div>
+            """
             
-            for idx, (team, tw, tl, sos_rank, opp_pct) in enumerate(team_records, start=1):
-                divisions_html += f"<tr><td class='col-r'>{idx}</td><td class='col-team'>{team}</td><td class='col-wl'>{tw}-{tl}</td><td class='col-sos'>{sos_rank}</td><td class='col-pct'>.{int(opp_pct * 1000)}</td></tr>"
+            for conf_name, data in playoff_data.items():
+                playoff_html += f"<h2>{conf_name}</h2>"
+                playoff_html += "<h3>Division Winners (Seeds 1-4)</h3>"
+                for idx, (t_name, tw, tl) in enumerate(data["div_winners"], start=1):
+                    playoff_html += f'<div class="seed">Seed {idx}: {t_name} ({tw}-{tl})</div>'
+                
+                playoff_html += "<h3>Wild Card Teams (Seeds 5-7)</h3>"
+                for idx, (t_name, tw, tl) in enumerate(data["wild_card"], start=5):
+                    playoff_html += f'<div class="seed">Seed {idx}: {t_name} ({tw}-{tl})</div>'
             
-            divisions_html += "</table>"
+            playoff_html += """
+            </body>
+            </html>
+            <script>
+            window.onafterprint = function() { window.close(); };
+            window.print();
+            </script>
+            """
+            
+            st.components.v1.html(playoff_html, height=0, width=1)
+    
+    # Display playoff picture
+    for conf_name, data in playoff_data.items():
+        st.sidebar.markdown(f"### {conf_name} Playoff Race")
+        st.sidebar.markdown("**Division Winners (Seeds 1-4)**")
+        for idx, (t_name, tw, tl) in enumerate(data["div_winners"], start=1):
+            st.sidebar.write(f"Seed {idx}: {t_name} ({tw}-{tl})")
+            
+        st.sidebar.markdown("**Wild Card Teams (Seeds 5-7)**")
+        for idx, (t_name, tw, tl) in enumerate(data["wild_card"], start=5):
+            st.sidebar.write(f"Seed {idx}: {t_name} ({tw}-{tl})")
+        st.sidebar.markdown("---")
+    
+    # --- ALL DIVISIONS SECTION ---
+    st.sidebar.markdown("**All Divisions Standings**")
+    col1, col2 = st.sidebar.columns([1, 0.3])
+    with col1:
+        pass
+    with col2:
+        if st.sidebar.button("🖨️", key="print_divisions", help="Print", use_container_width=True):
+            # Build divisions HTML - Landscape with side-by-side layout and FIXED column widths, with username
+            divisions_html = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>2026 NFL Division Standings</title>
+                <style>
+                    @page {{ size: landscape; margin: 0.3in; }}
+                    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+                    body {{ font-family: Arial, sans-serif; font-size: 10px; line-height: 1.2; }}
+                    h1 {{ text-align: center; font-size: 16px; margin-bottom: 5px; }}
+                    .username {{ text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 10px; color: #333; }}
+                    .container {{ display: flex; gap: 12px; }}
+                    .conference {{ flex: 1; }}
+                    .conf-title {{ font-size: 13px; font-weight: bold; text-align: center; margin-bottom: 8px; border-bottom: 2px solid #000; padding-bottom: 4px; }}
+                    .division {{ margin-bottom: 6px; page-break-inside: avoid; }}
+                    .div-title {{ font-size: 10px; font-weight: bold; margin-bottom: 2px; color: #333; }}
+                    table {{ width: 100%; border-collapse: collapse; font-size: 9px; table-layout: fixed; }}
+                    th, td {{ border: 0.5px solid #999; padding: 2px 3px; text-align: left; overflow: hidden; }}
+                    th {{ background-color: #e8e8e8; font-weight: bold; font-size: 8px; }}
+                    td {{ font-size: 8px; }}
+                    tr:nth-child(even) {{ background-color: #f9f9f9; }}
+                    /* Fixed column widths */
+                    .col-r {{ width: 20px; }}
+                    .col-team {{ width: 100px; }}
+                    .col-wl {{ width: 40px; }}
+                    .col-sos {{ width: 35px; }}
+                    .col-pct {{ width: 30px; }}
+                    @media print {{ 
+                        body {{ font-size: 10px; }}
+                        .conf-title {{ font-size: 12px; }}
+                        .div-title {{ font-size: 9px; }}
+                        table {{ font-size: 8px; }}
+                    }}
+                </style>
+            </head>
+            <body>
+                <h1>2026 NFL Division Standings</h1>
+                <div class="username">{username}</div>
+                <div class="container">
+            """
+            
+            # Build AFC (left column)
+            divisions_html += '<div class="conference">'
+            divisions_html += '<div class="conf-title">AFC</div>'
+            
+            for div_name, teams in NFL_STRUCTURE["AFC"].items():
+                divisions_html += '<div class="division">'
+                divisions_html += f'<div class="div-title">{div_name}</div>'
+                divisions_html += "<table><tr><th class='col-r'>R</th><th class='col-team'>Team</th><th class='col-wl'>W-L</th><th class='col-sos'>SOS</th><th class='col-pct'>%</th></tr>"
+                
+                team_records = []
+                for t in teams:
+                    tw, tl = calculate_team_record(t)
+                    sos_data = NFL_SOS.get(t, {})
+                    sos_rank = sos_data.get("rank", "-")
+                    opp_win_pct = sos_data.get("opp_win_pct", 0)
+                    team_records.append((t, tw, tl, sos_rank, opp_win_pct))
+                
+                team_records.sort(key=lambda x: (x[1], -x[2]), reverse=True)
+                
+                for idx, (team, tw, tl, sos_rank, opp_pct) in enumerate(team_records, start=1):
+                    divisions_html += f"<tr><td class='col-r'>{idx}</td><td class='col-team'>{team}</td><td class='col-wl'>{tw}-{tl}</td><td class='col-sos'>{sos_rank}</td><td class='col-pct'>.{int(opp_pct * 1000)}</td></tr>"
+                
+                divisions_html += "</table>"
+                divisions_html += '</div>'
+            
             divisions_html += '</div>'
-        
-        divisions_html += '</div>'
-        
-        # Build NFC (right column)
-        divisions_html += '<div class="conference">'
-        divisions_html += '<div class="conf-title">NFC</div>'
-        
-        for div_name, teams in NFL_STRUCTURE["NFC"].items():
-            divisions_html += '<div class="division">'
-            divisions_html += f'<div class="div-title">{div_name}</div>'
-            divisions_html += "<table><tr><th class='col-r'>R</th><th class='col-team'>Team</th><th class='col-wl'>W-L</th><th class='col-sos'>SOS</th><th class='col-pct'>%</th></tr>"
             
-            team_records = []
-            for t in teams:
-                tw, tl = calculate_team_record(t)
-                sos_data = NFL_SOS.get(t, {})
-                sos_rank = sos_data.get("rank", "-")
-                opp_win_pct = sos_data.get("opp_win_pct", 0)
-                team_records.append((t, tw, tl, sos_rank, opp_win_pct))
+            # Build NFC (right column)
+            divisions_html += '<div class="conference">'
+            divisions_html += '<div class="conf-title">NFC</div>'
             
-            team_records.sort(key=lambda x: (x[1], -x[2]), reverse=True)
+            for div_name, teams in NFL_STRUCTURE["NFC"].items():
+                divisions_html += '<div class="division">'
+                divisions_html += f'<div class="div-title">{div_name}</div>'
+                divisions_html += "<table><tr><th class='col-r'>R</th><th class='col-team'>Team</th><th class='col-wl'>W-L</th><th class='col-sos'>SOS</th><th class='col-pct'>%</th></tr>"
+                
+                team_records = []
+                for t in teams:
+                    tw, tl = calculate_team_record(t)
+                    sos_data = NFL_SOS.get(t, {})
+                    sos_rank = sos_data.get("rank", "-")
+                    opp_win_pct = sos_data.get("opp_win_pct", 0)
+                    team_records.append((t, tw, tl, sos_rank, opp_win_pct))
+                
+                team_records.sort(key=lambda x: (x[1], -x[2]), reverse=True)
+                
+                for idx, (team, tw, tl, sos_rank, opp_pct) in enumerate(team_records, start=1):
+                    divisions_html += f"<tr><td class='col-r'>{idx}</td><td class='col-team'>{team}</td><td class='col-wl'>{tw}-{tl}</td><td class='col-sos'>{sos_rank}</td><td class='col-pct'>.{int(opp_pct * 1000)}</td></tr>"
+                
+                divisions_html += "</table>"
+                divisions_html += '</div>'
             
-            for idx, (team, tw, tl, sos_rank, opp_pct) in enumerate(team_records, start=1):
-                divisions_html += f"<tr><td class='col-r'>{idx}</td><td class='col-team'>{team}</td><td class='col-wl'>{tw}-{tl}</td><td class='col-sos'>{sos_rank}</td><td class='col-pct'>.{int(opp_pct * 1000)}</td></tr>"
+            divisions_html += '</div></div>'
             
-            divisions_html += "</table>"
-            divisions_html += '</div>'
-        
-        divisions_html += '</div></div>'
-        
-        divisions_html += """
-        </body>
-        </html>
-        <script>
-        window.onafterprint = function() { window.close(); };
-        window.print();
-        </script>
-        """
-        
-        st.components.v1.html(divisions_html, height=0, width=1)
+            divisions_html += """
+            </body>
+            </html>
+            <script>
+            window.onafterprint = function() { window.close(); };
+            window.print();
+            </script>
+            """
+            
+            st.components.v1.html(divisions_html, height=0, width=1)
