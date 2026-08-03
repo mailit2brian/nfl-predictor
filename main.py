@@ -469,41 +469,49 @@ if page == "Admin - Enter Results":
         st.write(f"**Week {week_num}** - {len(week_games)} games")
         st.markdown("---")
         
-        # Create container for results
-        week_results = {}
+        # Initialize session state for admin selections
+        if "admin_selections" not in st.session_state:
+            st.session_state.admin_selections = {}
+        
         current_game_results = st.session_state.get("game_results", {})
         
         for game_id, (home_team, away_team) in sorted(week_games.items()):
+            # Load current value from game_results
+            current_winner = current_game_results.get(game_id)
+            
             col1, col2, col3 = st.columns([2, 1, 1])
             
             with col1:
                 st.write(f"**{away_team}** @ **{home_team}**")
             
+            # Away team button
             with col2:
                 if st.button(f"⬅️ {away_team}", key=f"away_{game_id}", use_container_width=True):
-                    week_results[game_id] = away_team
+                    st.session_state.admin_selections[game_id] = away_team
+                    st.session_state.game_results[game_id] = away_team
             
+            # Home team button
             with col3:
                 if st.button(f"{home_team} ➡️", key=f"home_{game_id}", use_container_width=True):
-                    week_results[game_id] = home_team
+                    st.session_state.admin_selections[game_id] = home_team
+                    st.session_state.game_results[game_id] = home_team
             
-            # Display current selection
-            current_winner = current_game_results.get(game_id, "—")
-            st.caption(f"Current: {current_winner}")
+            # Display current selection (highlighted)
+            selected = st.session_state.admin_selections.get(game_id, current_winner)
+            if selected:
+                st.caption(f"✅ Winner: **{selected}**")
+            else:
+                st.caption("— No selection")
             st.markdown("---")
         
         # Save button
         if st.button("💾 Save Week Results", key="save_results_btn", use_container_width=True):
-            # Update game results with new entries
-            updated_results = st.session_state.get("game_results", {})
-            updated_results.update(week_results)
-            
-            # Save locally and to GitHub
-            save_game_results_local(updated_results)
-            save_game_results_github(updated_results)
-            st.session_state.game_results = updated_results
-            
-            st.success(f"✅ Saved {len(week_results)} game results for Week {week_num}!")
+            # Get all results including current ones
+            save_game_results_local(st.session_state.game_results)
+            save_game_results_github(st.session_state.game_results)
+            st.success(f"✅ Saved Week {week_num} results to GitHub!")
+            # Clear selections for next week
+            st.session_state.admin_selections = {}
 
 # --- PAGE: LEADERBOARD ---
 elif page == "Leaderboard":
