@@ -585,25 +585,29 @@ else:
     # Check if we have actual game results
     has_uploaded_results = len(st.session_state.get("game_results", {})) > 0
     
-    if has_uploaded_results:
-        standings.sort(key=lambda x: (x[1], -x[2]), reverse=True)
-        st.sidebar.caption("Rank | Team | Actual | Projected | Diff")
-        st.sidebar.caption("-----|------|--------|-----------|-----")
+    # Build standings data
+    proj_standings = sorted(standings, key=lambda x: (-x[3], x[4]))
+    actual_standings = sorted(standings, key=lambda x: (-x[1], x[2]))
     
-        for idx, (team, actual_w, actual_l, projected_w, projected_l, _, _) in enumerate(standings, start=1):
-            win_diff = actual_w - projected_w
-            diff_label = "—" if win_diff == 0 else f"{win_diff:+d}W"
-            st.sidebar.caption(
-                f"{idx}. {team} | {actual_w}-{actual_l} | {projected_w}-{projected_l} | {diff_label}"
-            )
-    else:
-        # Sort by PROJECTED wins (descending), then by losses (ascending)
-        standings.sort(key=lambda x: (-x[3], x[4]))
-        st.sidebar.caption("Rank | Team | W-L | SOS | Opp. Win %")
-        st.sidebar.caption("-----|------|-----|-----|----------")
+    # Display side-by-side standings
+    col_left, col_right = st.sidebar.columns(2)
     
-        for idx, (team, _, _, projected_w, projected_l, sos_rank, opp_pct) in enumerate(standings, start=1):
-            st.sidebar.caption(f"{idx}. {team} ({projected_w}-{projected_l}) | {sos_rank} | .{int(opp_pct * 1000)}")
+    with col_left:
+        st.caption("**Projected**")
+        st.caption("Rank | Team | W-L")
+        st.caption("-----|------|-----")
+        for idx, (team, _, _, projected_w, projected_l, _, _) in enumerate(proj_standings, start=1):
+            st.caption(f"{idx}. {team} | {projected_w}-{projected_l}")
+    
+    with col_right:
+        st.caption("**Actual**")
+        st.caption("Rank | Team | W-L")
+        st.caption("-----|------|-----")
+        if has_uploaded_results:
+            for idx, (team, actual_w, actual_l, _, _, _, _) in enumerate(actual_standings, start=1):
+                st.caption(f"{idx}. {team} | {actual_w}-{actual_l}")
+        else:
+            st.caption("*(No results yet)*")
     
     # --- MAIN CONTENT: SCHEDULE ---
     st.title(f"2026 Schedule & Predictions: {selected_team}")
