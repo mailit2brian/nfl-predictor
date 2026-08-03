@@ -506,12 +506,16 @@ if page == "Admin - Enter Results":
                 if st.button(f"⬅️ {away_team}", key=f"away_{game_id}", use_container_width=True):
                     st.session_state.admin_selections[game_id] = away_team
                     st.session_state.game_results[game_id] = away_team
+                    save_game_results_local(st.session_state.game_results)
+                    save_game_results_github(st.session_state.game_results)
             
             # Home team button
             with col3:
                 if st.button(f"{home_team} ➡️", key=f"home_{game_id}", use_container_width=True):
                     st.session_state.admin_selections[game_id] = home_team
                     st.session_state.game_results[game_id] = home_team
+                    save_game_results_local(st.session_state.game_results)
+                    save_game_results_github(st.session_state.game_results)
             
             # Display current selection (highlighted)
             selected = st.session_state.admin_selections.get(game_id, current_winner)
