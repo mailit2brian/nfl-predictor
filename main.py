@@ -420,10 +420,10 @@ if "user_predictions" not in st.session_state:
     github_picks = load_user_picks_github(username)
     st.session_state.user_predictions = local_picks if local_picks else github_picks
 
-if "game_results" not in st.session_state:
-    local_results = load_game_results_local()
-    github_results = load_game_results_github()
-    st.session_state.game_results = local_results if local_results else github_results
+# Always reload game results from GitHub to ensure fresh data
+local_results = load_game_results_local()
+github_results = load_game_results_github()
+st.session_state.game_results = local_results if local_results else github_results
 
 correct_picks, incorrect_picks = calculate_season_accuracy(username)
 accuracy_pct = get_accuracy_percentage()
@@ -582,6 +582,7 @@ else:
         opp_win_pct = sos_data.get("opp_win_pct", 0)
         standings.append((team, actual_w, actual_l, projected_w, projected_l, sos_rank, opp_win_pct))
     
+    # Check if we have actual game results
     has_uploaded_results = len(st.session_state.get("game_results", {})) > 0
     
     if has_uploaded_results:
