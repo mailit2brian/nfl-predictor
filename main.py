@@ -525,10 +525,15 @@ if page == "Admin - Enter Results":
         if st.button("💾 Save Week Results", key="save_results_btn", use_container_width=True):
             # Get all results including current ones
             save_game_results_local(st.session_state.game_results)
-            save_game_results_github(st.session_state.game_results)
-            st.success(f"✅ Saved Week {week_num} results to GitHub!")
-            # Clear selections for next week
-            st.session_state.admin_selections = {}
+            github_save_success = save_game_results_github(st.session_state.game_results)
+            if github_save_success:
+                st.session_state.game_results = load_game_results_github()
+                st.success(f"✅ Saved Week {week_num} results to GitHub!")
+                # Clear selections for next week
+                st.session_state.admin_selections = {}
+                st.rerun()
+            else:
+                st.warning("Saved locally, but could not sync results to GitHub.")
 
 # --- PAGE: LEADERBOARD ---
 elif page == "Leaderboard":
