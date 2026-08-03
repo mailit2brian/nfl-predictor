@@ -423,7 +423,7 @@ if "user_predictions" not in st.session_state:
 # Always reload game results from GitHub to ensure fresh data
 local_results = load_game_results_local()
 github_results = load_game_results_github()
-st.session_state.game_results = local_results if local_results else github_results
+st.session_state.game_results = github_results if github_results else local_results
 
 correct_picks, incorrect_picks = calculate_season_accuracy(username)
 accuracy_pct = get_accuracy_percentage()
@@ -481,8 +481,9 @@ if page == "Admin - Enter Results":
                 # Save to GitHub
                 save_game_results_local(st.session_state.game_results)
                 save_game_results_github(st.session_state.game_results)
+                fresh_github_results = load_game_results_github()
+                st.session_state.game_results = fresh_github_results if fresh_github_results else load_game_results_local()
                 st.success(f"✅ Cleared all results for Week {week_num}")
-                st.rerun()
         
         st.markdown("---")
         
@@ -526,6 +527,8 @@ if page == "Admin - Enter Results":
             # Get all results including current ones
             save_game_results_local(st.session_state.game_results)
             save_game_results_github(st.session_state.game_results)
+            fresh_github_results = load_game_results_github()
+            st.session_state.game_results = fresh_github_results if fresh_github_results else load_game_results_local()
             st.success(f"✅ Saved Week {week_num} results to GitHub!")
             # Clear selections for next week
             st.session_state.admin_selections = {}
