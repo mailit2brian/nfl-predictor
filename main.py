@@ -532,14 +532,14 @@ if page == "Admin - Enter Results":
         
         # Save button
         if st.button("💾 Save Week Results", key="save_results_btn", use_container_width=True):
-            st.write("DEBUG: Saving data...")
+            # Transfer admin selections to game_results BEFORE saving
+            for game_id, winner in st.session_state.admin_selections.items():
+                st.session_state.game_results[game_id] = winner
+            
             st.write(f"DEBUG: Data to save: {st.session_state.game_results}")
             
             save_game_results_local(st.session_state.game_results)
-            st.write("DEBUG: Saved to local file")
-            
             success = save_game_results_github(st.session_state.game_results)
-            st.write(f"DEBUG: GitHub save result: {success}")
             
             if success:
                 st.success(f"✅ Saved Week {week_num} results to GitHub!")
