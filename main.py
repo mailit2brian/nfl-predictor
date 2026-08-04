@@ -22,6 +22,8 @@ NFL_STRUCTURE = {
     }
 }
 
+TRACKED_USERS = ["Brian", "Chris", "Jason", "Mike"]
+
 # Vegas Over/Under Win Totals (as of July 27, 2026)
 VEGAS_ODDS = {
     "Buffalo Bills": 10.5,
@@ -370,11 +372,10 @@ def get_accuracy_percentage():
 
 def get_all_users_accuracy():
     """Get accuracy for all tracked users: Brian, Chris, Jason, Mike."""
-    tracked_users = ["Brian", "Chris", "Jason", "Mike"]
     game_results = st.session_state.get("game_results", {})
     user_accuracy = []
 
-    for user in tracked_users:
+    for user in TRACKED_USERS:
         local_picks = load_user_picks_local(user)
         github_picks = load_user_picks_github(user)
         user_picks = local_picks if local_picks else github_picks
@@ -716,7 +717,11 @@ else:
         pass
     with col2:
         if st.sidebar.button("🖨️", key="print_playoff", help="Print", use_container_width=True):
-            # Build playoff HTML with username
+            tracked_users_html = "".join(
+                f'<span class="tracked-user">{user}</span>' for user in TRACKED_USERS
+            )
+
+            # Build playoff HTML with tracked users
             playoff_html = f"""
             <!DOCTYPE html>
             <html>
@@ -725,7 +730,10 @@ else:
                 <style>
                     body {{ font-family: Arial, sans-serif; margin: 20px; }}
                     h1 {{ text-align: center; font-size: 24px; margin-bottom: 5px; }}
-                    .username {{ text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 20px; color: #333; }}
+                    .tracked-users-section {{ text-align: center; margin: 0 0 20px; color: #333; }}
+                    .tracked-users-label {{ display: block; font-size: 16px; font-weight: bold; margin-bottom: 8px; }}
+                    .tracked-users-list {{ display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; font-size: 15px; }}
+                    .tracked-user {{ font-weight: 600; }}
                     h2 {{ font-size: 18px; margin-top: 25px; border-bottom: 2px solid #000; padding-bottom: 10px; }}
                     h3 {{ font-size: 14px; margin-top: 15px; font-weight: bold; }}
                     .seed {{ margin-left: 20px; font-size: 13px; line-height: 1.6; }}
@@ -734,7 +742,10 @@ else:
             </head>
             <body>
                 <h1>2026 NFL Playoff Picture</h1>
-                <div class="username">{username}</div>
+                <div class="tracked-users-section">
+                    <span class="tracked-users-label">Tracked Users</span>
+                    <div class="tracked-users-list">{tracked_users_html}</div>
+                </div>
             """
             
             for conf_name, data in playoff_data.items():
