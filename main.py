@@ -611,10 +611,10 @@ else:
     
     with col_left:
         st.caption("**Projected**")
-        st.caption("Rank | Team | W-L")
-        st.caption("-----|------|-----")
-        for idx, (team, _, _, projected_w, projected_l, _, _) in enumerate(proj_standings, start=1):
-            st.caption(f"{idx}. {team} | {projected_w}-{projected_l}")
+        st.caption("Rank | Team | W-L | SOS")
+        st.caption("-----|------|-----|-----")
+        for idx, (team, _, _, projected_w, projected_l, sos_rank, _) in enumerate(proj_standings, start=1):
+            st.caption(f"{idx}. {team} | {projected_w}-{projected_l} | {sos_rank}")
     
     with col_right:
         st.caption("**Actual**")
