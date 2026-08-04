@@ -716,7 +716,9 @@ else:
         pass
     with col2:
         if st.sidebar.button("🖨️", key="print_playoff", help="Print", use_container_width=True):
-            # Build playoff HTML with username
+            tracked_users = ["Brian", "Chris", "Jason", "Mike"]
+            users_html = "".join(f'<span>{user}</span>' for user in tracked_users)
+
             playoff_html = f"""
             <!DOCTYPE html>
             <html>
@@ -725,7 +727,16 @@ else:
                 <style>
                     body {{ font-family: Arial, sans-serif; margin: 20px; }}
                     h1 {{ text-align: center; font-size: 24px; margin-bottom: 5px; }}
-                    .username {{ text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 20px; color: #333; }}
+                    .tracked-users {{
+                        display: flex;
+                        justify-content: center;
+                        gap: 18px;
+                        flex-wrap: wrap;
+                        margin-bottom: 20px;
+                        color: #333;
+                        font-size: 18px;
+                        font-weight: bold;
+                    }}
                     h2 {{ font-size: 18px; margin-top: 25px; border-bottom: 2px solid #000; padding-bottom: 10px; }}
                     h3 {{ font-size: 14px; margin-top: 15px; font-weight: bold; }}
                     .seed {{ margin-left: 20px; font-size: 13px; line-height: 1.6; }}
@@ -734,7 +745,7 @@ else:
             </head>
             <body>
                 <h1>2026 NFL Playoff Picture</h1>
-                <div class="username">{username}</div>
+                <div class="tracked-users">{users_html}</div>
             """
             
             for conf_name, data in playoff_data.items():
