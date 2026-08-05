@@ -804,7 +804,6 @@ else:
                     .col-team {{ width: 100px; }}
                     .col-wl {{ width: 40px; }}
                     .col-sos {{ width: 35px; }}
-                    .col-pct {{ width: 30px; }}
                     @media print {{ 
                         body {{ font-size: 10px; }}
                         .conf-title {{ font-size: 12px; }}
@@ -826,7 +825,7 @@ else:
             for div_name, teams in NFL_STRUCTURE["AFC"].items():
                 divisions_html += '<div class="division">'
                 divisions_html += f'<div class="div-title">{div_name}</div>'
-                divisions_html += "<table><tr><th class='col-r'>R</th><th class='col-team'>Team</th><th class='col-wl'>W-L</th><th class='col-sos'>SOS</th><th class='col-pct'>%</th></tr>"
+                divisions_html += "<table><tr><th class='col-r'>R</th><th class='col-team'>Team</th><th class='col-wl'>W-L</th><th class='col-sos'>SOS</th></tr>"
                 
                 team_records = []
                 for t in teams:
@@ -839,7 +838,7 @@ else:
                 team_records.sort(key=lambda x: (-x[1], x[2]))
                 
                 for idx, (team, tw, tl, sos_rank, opp_pct) in enumerate(team_records, start=1):
-                    divisions_html += f"<tr><td class='col-r'>{idx}</td><td class='col-team'>{team}</td><td class='col-wl'>{tw}-{tl}</td><td class='col-sos'>{sos_rank}</td><td class='col-pct'>.{int(opp_pct * 1000) / 1000}</td></tr>"
+                    divisions_html += f"<tr><td class='col-r'>{idx}</td><td class='col-team'>{team}</td><td class='col-wl'>{tw}-{tl}</td><td class='col-sos'>{sos_rank}</td></tr>"
                 
                 divisions_html += "</table>"
                 divisions_html += '</div>'
@@ -853,7 +852,7 @@ else:
             for div_name, teams in NFL_STRUCTURE["NFC"].items():
                 divisions_html += '<div class="division">'
                 divisions_html += f'<div class="div-title">{div_name}</div>'
-                divisions_html += "<table><tr><th class='col-r'>R</th><th class='col-team'>Team</th><th class='col-wl'>W-L</th><th class='col-sos'>SOS</th><th class='col-pct'>%</th></tr>"
+                divisions_html += "<table><tr><th class='col-r'>R</th><th class='col-team'>Team</th><th class='col-wl'>W-L</th><th class='col-sos'>SOS</th></tr>"
                 
                 team_records = []
                 for t in teams:
@@ -866,7 +865,7 @@ else:
                 team_records.sort(key=lambda x: (-x[1], x[2]))
                 
                 for idx, (team, tw, tl, sos_rank, opp_pct) in enumerate(team_records, start=1):
-                    divisions_html += f"<tr><td class='col-r'>{idx}</td><td class='col-team'>{team}</td><td class='col-wl'>{tw}-{tl}</td><td class='col-sos'>{sos_rank}</td><td class='col-pct'>.{int(opp_pct * 1000) / 1000}</td></tr>"
+                    divisions_html += f"<tr><td class='col-r'>{idx}</td><td class='col-team'>{team}</td><td class='col-wl'>{tw}-{tl}</td><td class='col-sos'>{sos_rank}</td></tr>"
                 
                 divisions_html += "</table>"
                 divisions_html += '</div>'
