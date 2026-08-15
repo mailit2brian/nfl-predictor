@@ -103,7 +103,7 @@ def load_user_picks_github(username):
         headers = {"Authorization": f"token {token}"}
         url = f"https://api.github.com/repos/mailit2brian/nfl-predictor/contents/picks_{username}.json"
         
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=5)
         if response.status_code == 200:
             content = response.json()
             file_content = base64.b64decode(content["content"]).decode()
@@ -129,7 +129,7 @@ def save_user_pick_github(username, picks_dict):
         file_content_b64 = base64.b64encode(file_content.encode()).decode()
         
         # Check if file exists to get the SHA
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=5)
         sha = None
         if response.status_code == 200:
             sha = response.json()["sha"]
@@ -142,7 +142,7 @@ def save_user_pick_github(username, picks_dict):
         if sha:
             data["sha"] = sha
         
-        response = requests.put(url, headers=headers, json=data)
+        response = requests.put(url, headers=headers, json=data, timeout=5)
         return response.status_code in [200, 201]
     except Exception as e:
         st.warning(f"Could not sync to GitHub: {e}")
@@ -179,7 +179,7 @@ def load_game_results_github():
         headers = {"Authorization": f"token {token}"}
         url = "https://api.github.com/repos/mailit2brian/nfl-predictor/contents/game_results.json"
         
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=5)
         if response.status_code == 200:
             content = response.json()
             file_content = base64.b64decode(content["content"]).decode()
@@ -213,7 +213,7 @@ def save_game_results_github(results_dict):
         file_content_b64 = base64.b64encode(file_content.encode()).decode()
         
         # Get fresh SHA every time before saving
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=5)
         sha = None
         if response.status_code == 200:
             sha = response.json()["sha"]
@@ -228,7 +228,7 @@ def save_game_results_github(results_dict):
         if sha:
             data["sha"] = sha
         
-        response = requests.put(url, headers=headers, json=data)
+        response = requests.put(url, headers=headers, json=data, timeout=5)
         if response.status_code in [200, 201]:
             return True
         else:
@@ -832,12 +832,11 @@ else:
                     tw, tl = calculate_team_record(t)
                     sos_data = NFL_SOS.get(t, {})
                     sos_rank = sos_data.get("rank", "-")
-                    opp_win_pct = sos_data.get("opp_win_pct", 0)
-                    team_records.append((t, tw, tl, sos_rank, opp_win_pct))
+                    team_records.append((t, tw, tl, sos_rank))
                 
                 team_records.sort(key=lambda x: (-x[1], x[2]))
                 
-                for idx, (team, tw, tl, sos_rank, opp_pct) in enumerate(team_records, start=1):
+                for idx, (team, tw, tl, sos_rank) in enumerate(team_records, start=1):
                     divisions_html += f"<tr><td class='col-r'>{idx}</td><td class='col-team'>{team}</td><td class='col-wl'>{tw}-{tl}</td><td class='col-sos'>{sos_rank}</td></tr>"
                 
                 divisions_html += "</table>"
@@ -859,12 +858,11 @@ else:
                     tw, tl = calculate_team_record(t)
                     sos_data = NFL_SOS.get(t, {})
                     sos_rank = sos_data.get("rank", "-")
-                    opp_win_pct = sos_data.get("opp_win_pct", 0)
-                    team_records.append((t, tw, tl, sos_rank, opp_win_pct))
+                    team_records.append((t, tw, tl, sos_rank))
                 
                 team_records.sort(key=lambda x: (-x[1], x[2]))
                 
-                for idx, (team, tw, tl, sos_rank, opp_pct) in enumerate(team_records, start=1):
+                for idx, (team, tw, tl, sos_rank) in enumerate(team_records, start=1):
                     divisions_html += f"<tr><td class='col-r'>{idx}</td><td class='col-team'>{team}</td><td class='col-wl'>{tw}-{tl}</td><td class='col-sos'>{sos_rank}</td></tr>"
                 
                 divisions_html += "</table>"
